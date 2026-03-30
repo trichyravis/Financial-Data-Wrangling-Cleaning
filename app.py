@@ -1,3 +1,4 @@
+
 """
 =============================================================================
 THE MOUNTAIN PATH - WORLD OF FINANCE
@@ -47,87 +48,349 @@ BG_GRAD    = "linear-gradient(135deg,#1a2332,#243447,#2a3f5f)"
 
 st.markdown(f"""
 <style>
-  /* ── base ── */
+  /* ══════════════════════════════════════════
+     BASE & BACKGROUND
+  ══════════════════════════════════════════ */
   .stApp {{
-    background: {BG_GRAD};
-    color: {TXT};
+    background: {BG_GRAD} !important;
+    color: {TXT} !important;
     font-family: 'Segoe UI', Arial, sans-serif;
   }}
+  .block-container {{ padding-top: 1.5rem; }}
+
+  /* ══════════════════════════════════════════
+     SIDEBAR — full contrast overhaul
+  ══════════════════════════════════════════ */
   section[data-testid="stSidebar"] {{
-    background: {CARD_BG} !important;
-    border-right: 2px solid {GOLD};
+    background: #0a1628 !important;
+    border-right: 3px solid {GOLD} !important;
   }}
-  /* ── headings ── */
-  h1,h2,h3,h4 {{ color:{GOLD} !important; }}
-  /* ── metric ── */
+  section[data-testid="stSidebar"] * {{
+    color: #ffffff !important;
+  }}
+  /* Sidebar radio label text */
+  section[data-testid="stSidebar"] label,
+  section[data-testid="stSidebar"] .stRadio label,
+  section[data-testid="stSidebar"] .stRadio p,
+  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
+  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span {{
+    color: #ffffff !important;
+    font-size: 13px !important;
+  }}
+  /* Radio options hover */
+  section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {{
+    background: {DARK_BLUE}aa !important;
+    border-radius: 6px;
+    color: {GOLD} !important;
+  }}
+  /* Selected radio item */
+  section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-checked="true"],
+  section[data-testid="stSidebar"] .stRadio input:checked + div {{
+    color: {GOLD} !important;
+    font-weight: 700 !important;
+  }}
+  /* Radio circle/dot color */
+  section[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] svg {{
+    fill: {GOLD} !important;
+  }}
+  /* Sidebar heading / divider text */
+  section[data-testid="stSidebar"] h1,
+  section[data-testid="stSidebar"] h2,
+  section[data-testid="stSidebar"] h3,
+  section[data-testid="stSidebar"] h4 {{
+    color: {GOLD} !important;
+  }}
+  /* Sidebar links */
+  section[data-testid="stSidebar"] a {{
+    color: {GOLD} !important;
+    text-decoration: none;
+  }}
+  section[data-testid="stSidebar"] a:hover {{
+    color: {LIGHT_BLUE} !important;
+    text-decoration: underline;
+  }}
+  /* Sidebar muted text override */
+  section[data-testid="stSidebar"] small,
+  section[data-testid="stSidebar"] .sidebar-muted {{
+    color: {LIGHT_BLUE} !important;
+    opacity: 1 !important;
+  }}
+  /* Sidebar separator line */
+  section[data-testid="stSidebar"] hr {{
+    border-color: {GOLD}55 !important;
+  }}
+  /* Nav label above radio group */
+  section[data-testid="stSidebar"] .stRadio > label {{
+    color: {GOLD} !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }}
+
+  /* ══════════════════════════════════════════
+     MAIN CONTENT — headings
+  ══════════════════════════════════════════ */
+  h1, h2, h3, h4 {{ color: {GOLD} !important; }}
+  p, li, span {{
+    color: {TXT};
+  }}
+
+  /* ══════════════════════════════════════════
+     METRIC CARDS
+  ══════════════════════════════════════════ */
   [data-testid="metric-container"] {{
-    background: {CARD_BG};
-    border: 1px solid {GOLD}44;
-    border-radius: 10px;
-    padding: 12px;
+    background: #0d1b2e !important;
+    border: 1px solid {GOLD}55 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
   }}
-  /* ── info/success/warning boxes ── */
-  .stAlert {{ border-radius: 8px !important; }}
-  /* ── tabs ── */
+  [data-testid="metric-container"] label,
+  [data-testid="metric-container"] [data-testid="stMetricLabel"] p {{
+    color: {LIGHT_BLUE} !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }}
+  [data-testid="metric-container"] [data-testid="stMetricValue"] {{
+    color: {GOLD} !important;
+    font-size: 26px !important;
+    font-weight: 800 !important;
+  }}
+  [data-testid="metric-container"] [data-testid="stMetricDelta"] {{
+    color: {MUTED} !important;
+    font-size: 11px !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     TABS
+  ══════════════════════════════════════════ */
   .stTabs [data-baseweb="tab-list"] {{
-    background: {CARD_BG};
+    background: #0d1b2e !important;
     border-radius: 8px 8px 0 0;
-    gap: 4px;
+    gap: 3px;
+    padding: 4px 4px 0;
+    border-bottom: 2px solid {GOLD}33;
   }}
   .stTabs [data-baseweb="tab"] {{
-    color: {MUTED};
-    font-weight: 600;
+    color: {LIGHT_BLUE} !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
     border-radius: 6px 6px 0 0;
-    padding: 8px 18px;
+    padding: 8px 16px;
+    background: #152035 !important;
+    border: 1px solid {GOLD}22 !important;
+    border-bottom: none !important;
+    transition: all 0.2s;
+  }}
+  .stTabs [data-baseweb="tab"]:hover {{
+    color: {GOLD} !important;
+    background: {DARK_BLUE} !important;
   }}
   .stTabs [aria-selected="true"] {{
     background: {DARK_BLUE} !important;
     color: {GOLD} !important;
-    border-bottom: 3px solid {GOLD};
+    border-bottom: 3px solid {GOLD} !important;
+    font-weight: 700 !important;
   }}
-  /* ── cards ── */
+
+  /* ══════════════════════════════════════════
+     ALERT / INFO BOXES
+  ══════════════════════════════════════════ */
+  .stAlert {{ border-radius: 8px !important; }}
+  div[data-testid="stInfo"] {{
+    background: #0d2240 !important;
+    border-left: 4px solid {LIGHT_BLUE} !important;
+    color: {TXT} !important;
+  }}
+  div[data-testid="stSuccess"] {{
+    background: #0a2a14 !important;
+    border-left: 4px solid {GREEN} !important;
+    color: #c3f0ca !important;
+  }}
+  div[data-testid="stWarning"] {{
+    background: #2a1f00 !important;
+    border-left: 4px solid {GOLD} !important;
+    color: #ffe9a0 !important;
+  }}
+  div[data-testid="stError"] {{
+    background: #2a0a0a !important;
+    border-left: 4px solid {RED} !important;
+    color: #ffb3b3 !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     INPUTS
+  ══════════════════════════════════════════ */
+  /* Text area */
+  .stTextArea textarea {{
+    background: #0d1b2e !important;
+    color: {TXT} !important;
+    border: 1px solid {GOLD}44 !important;
+    border-radius: 6px !important;
+    font-family: 'Courier New', monospace;
+  }}
+  /* Select boxes */
+  .stSelectbox [data-baseweb="select"] div,
+  .stSelectbox [data-baseweb="select"] span {{
+    background: #0d1b2e !important;
+    color: {TXT} !important;
+    border-color: {GOLD}44 !important;
+  }}
+  /* Radio buttons in MAIN area (not sidebar) */
+  .main .stRadio label p,
+  .main .stRadio label span {{
+    color: {TXT} !important;
+    font-size: 13px !important;
+  }}
+  /* Checkbox */
+  .stCheckbox label p,
+  .stCheckbox label span {{
+    color: {TXT} !important;
+  }}
+  /* Slider */
+  .stSlider [data-baseweb="slider"] {{
+    color: {GOLD} !important;
+  }}
+  .stSlider [data-testid="stTickBarMin"],
+  .stSlider [data-testid="stTickBarMax"] {{
+    color: {MUTED} !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     DATAFRAME / TABLE
+  ══════════════════════════════════════════ */
+  [data-testid="stDataFrame"] {{
+    border-radius: 8px;
+    overflow: hidden;
+  }}
+  .stDataFrame thead tr th {{
+    background: {DARK_BLUE} !important;
+    color: {GOLD} !important;
+    font-weight: 700 !important;
+  }}
+  .stDataFrame tbody tr td {{
+    color: {TXT} !important;
+    background: #0d1b2e !important;
+  }}
+  .stDataFrame tbody tr:nth-child(even) td {{
+    background: #112240 !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     FILE UPLOADER
+  ══════════════════════════════════════════ */
+  [data-testid="stFileUploader"] {{
+    background: #0d1b2e !important;
+    border: 2px dashed {GOLD}55 !important;
+    border-radius: 8px !important;
+  }}
+  [data-testid="stFileUploader"] span,
+  [data-testid="stFileUploader"] p {{
+    color: {LIGHT_BLUE} !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     EXPANDER
+  ══════════════════════════════════════════ */
+  .streamlit-expanderHeader {{
+    background: #0d1b2e !important;
+    color: {GOLD} !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+  }}
+  .streamlit-expanderContent {{
+    background: #0a1628 !important;
+    border: 1px solid {GOLD}22 !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     BUTTON
+  ══════════════════════════════════════════ */
+  .stButton > button {{
+    background: {DARK_BLUE} !important;
+    color: {GOLD} !important;
+    border: 2px solid {GOLD} !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    padding: 10px 24px !important;
+    transition: all 0.2s !important;
+  }}
+  .stButton > button:hover {{
+    background: {GOLD} !important;
+    color: {DARK_BLUE} !important;
+    border-color: {GOLD} !important;
+  }}
+  .stButton > button[kind="primary"] {{
+    background: {GOLD} !important;
+    color: {DARK_BLUE} !important;
+    border-color: {GOLD} !important;
+  }}
+  .stButton > button[kind="primary"]:hover {{
+    background: #e6c200 !important;
+    border-color: #e6c200 !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     PROGRESS BAR
+  ══════════════════════════════════════════ */
+  .stProgress > div > div > div > div {{
+    background: {GOLD} !important;
+  }}
+  .stProgress > div > div > div {{
+    background: #0d1b2e !important;
+  }}
+
+  /* ══════════════════════════════════════════
+     CUSTOM COMPONENT CARDS
+  ══════════════════════════════════════════ */
   .mp-card {{
-    background: {CARD_BG};
+    background: #0d1b2e;
     border: 1px solid {GOLD}44;
     border-left: 4px solid {GOLD};
     border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    color: {TXT};
   }}
   .mp-card-red {{
-    background: {CARD_BG};
+    background: #1a0a0a;
     border: 1px solid {RED}66;
     border-left: 4px solid {RED};
     border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    color: {TXT};
   }}
   .mp-card-green {{
-    background: {CARD_BG};
+    background: #0a1a0a;
     border: 1px solid {GREEN}66;
     border-left: 4px solid {GREEN};
     border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    color: {TXT};
   }}
   .mp-card-blue {{
-    background: {CARD_BG};
+    background: #0a1428;
     border: 1px solid {LIGHT_BLUE}66;
     border-left: 4px solid {LIGHT_BLUE};
     border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    color: {TXT};
   }}
-  /* ── hero ── */
   .hero-wrap {{
     background: linear-gradient(135deg,{DARK_BLUE},{MID_BLUE});
     border: 2px solid {GOLD};
     border-radius: 14px;
-    padding: 30px 36px;
+    padding: 28px 34px;
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 22px;
   }}
-  /* ── badge ── */
   .badge {{
     display: inline-block;
     background: {GOLD};
@@ -141,59 +404,54 @@ st.markdown(f"""
   }}
   .badge-red {{
     background: {RED};
-    color: white;
+    color: #ffffff;
   }}
   .badge-green {{
     background: {GREEN};
-    color: white;
+    color: #ffffff;
   }}
-  /* ── formula box ── */
   .formula-box {{
-    background: {DARK_BLUE};
+    background: linear-gradient(135deg,#001a40,{DARK_BLUE});
     border: 2px solid {GOLD};
     border-radius: 10px;
     padding: 18px 24px;
     text-align: center;
-    margin: 16px 0;
+    margin: 14px 0;
     user-select: none;
   }}
-  /* ── verdict banners ── */
   .verdict-ok {{
-    background: linear-gradient(90deg,#1a3a1a,{CARD_BG});
+    background: linear-gradient(90deg,#0d2e0d,#0a1628);
     border-left: 5px solid {GREEN};
     border-radius: 8px;
     padding: 14px 20px;
-    color: #aaffaa;
+    color: #c3f0ca;
     font-weight: 700;
     font-size: 15px;
+    margin: 10px 0;
   }}
   .verdict-warn {{
-    background: linear-gradient(90deg,#3a2a00,{CARD_BG});
+    background: linear-gradient(90deg,#2a1f00,#0a1628);
     border-left: 5px solid {GOLD};
     border-radius: 8px;
     padding: 14px 20px;
     color: {GOLD};
     font-weight: 700;
     font-size: 15px;
+    margin: 10px 0;
   }}
   .verdict-bad {{
-    background: linear-gradient(90deg,#3a0a0a,{CARD_BG});
+    background: linear-gradient(90deg,#2a0000,#0a1628);
     border-left: 5px solid {RED};
     border-radius: 8px;
     padding: 14px 20px;
-    color: #ffaaaa;
+    color: #ffb3b3;
     font-weight: 700;
     font-size: 15px;
+    margin: 10px 0;
   }}
-  /* ── sidebar links ── */
-  a {{ color:{GOLD} !important; text-decoration:none; }}
-  a:hover {{ color:{LIGHT_BLUE} !important; text-decoration:underline; }}
-  /* ── dataframe ── */
-  [data-testid="stDataFrame"] {{ border-radius: 8px; }}
-  /* ── slider ── */
-  .stSlider [data-baseweb="slider"] {{ color:{GOLD}; }}
-  /* suppress default stMarkdown padding */
-  .block-container {{ padding-top: 1.5rem; }}
+  /* Global links */
+  a {{ color: {GOLD} !important; text-decoration: none; }}
+  a:hover {{ color: {LIGHT_BLUE} !important; text-decoration: underline; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -461,26 +719,43 @@ def show_digit_table(result):
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
+    # ── Brand Header ──────────────────────────────────
     st.markdown(f"""
-    <div style="text-align:center; padding:16px 0 8px;">
-      <div style="font-size:26px; color:{GOLD}; font-weight:900; letter-spacing:1px;">
+    <div style="text-align:center; padding:18px 10px 12px; background:#001428;
+         border-radius:10px; margin-bottom:12px; border:1px solid {GOLD}55;">
+      <div style="font-size:22px; color:{GOLD}; font-weight:900;
+           letter-spacing:1px; line-height:1.2;">
         🏔️ THE MOUNTAIN PATH
       </div>
-      <div style="font-size:12px; color:{MUTED}; margin-top:4px;">
+      <div style="font-size:11px; color:#ADD8E6; margin-top:4px;
+           letter-spacing:2px; text-transform:uppercase;">
         World of Finance
       </div>
-      <div style="height:2px; background:{GOLD}; margin:10px 0;"></div>
-      <div style="font-size:11px; color:{LIGHT_BLUE};">
-        Prof. V. Ravichandran<br>
-        <a href="https://themountainpathacademy.com" target="_blank">
+      <div style="height:2px; background:linear-gradient(90deg,transparent,{GOLD},transparent);
+           margin:10px 0;"></div>
+      <div style="font-size:12px; color:#ffffff; font-weight:600;">
+        Prof. V. Ravichandran
+      </div>
+      <div style="font-size:11px; color:#ADD8E6; margin-top:3px;">
+        <a href="https://themountainpathacademy.com" target="_blank"
+           style="color:{GOLD} !important; text-decoration:none;">
           themountainpathacademy.com
         </a>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Navigation Label ──────────────────────────────
+    st.markdown(f"""
+    <div style="font-size:11px; color:{GOLD}; font-weight:700;
+         text-transform:uppercase; letter-spacing:1px;
+         padding:4px 6px 6px; margin-bottom:4px;">
+      📚 NAVIGATE
+    </div>
+    """, unsafe_allow_html=True)
+
     page = st.radio(
-        "📚 Navigate",
+        "Navigate",
         ["🏠 Home",
          "📖 Learn: Benford's Law",
          "📊 Interactive Analyzer",
@@ -492,24 +767,36 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
-    st.markdown("---")
+    # ── Key Topics ────────────────────────────────────
     st.markdown(f"""
-    <div style="font-size:11px; color:{MUTED}; line-height:1.7;">
-      <b style="color:{GOLD};">Key Topics</b><br>
-      • Benford's Law Formula<br>
-      • First & Second Digit Tests<br>
-      • Chi-Squared & MAD Tests<br>
-      • GST / Tax Fraud Detection<br>
-      • Expense Reimbursement Fraud<br>
-      • PMLA Structuring Detection<br>
-      • Isolation Forest ML<br>
-      • Ethical Considerations
+    <div style="margin-top:14px; padding:12px 14px;
+         background:#001428; border-radius:8px;
+         border:1px solid {GOLD}33;">
+      <div style="font-size:11px; font-weight:700; color:{GOLD};
+           text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+        🔑 Key Topics
+      </div>
+      <div style="font-size:12px; color:#e6f1ff; line-height:1.9;">
+        <span style="color:{GOLD};">▸</span> Benford's Law Formula<br>
+        <span style="color:{GOLD};">▸</span> First &amp; Second Digit Tests<br>
+        <span style="color:{GOLD};">▸</span> Chi-Squared &amp; MAD Tests<br>
+        <span style="color:{GOLD};">▸</span> GST / Tax Fraud Detection<br>
+        <span style="color:{GOLD};">▸</span> Expense Reimbursement Fraud<br>
+        <span style="color:{GOLD};">▸</span> PMLA Structuring Detection<br>
+        <span style="color:{GOLD};">▸</span> Isolation Forest ML<br>
+        <span style="color:{GOLD};">▸</span> Ethical Considerations
+      </div>
     </div>
-    <div style="height:2px; background:{GOLD}22; margin:12px 0;"></div>
-    <div style="font-size:10px; color:{MUTED}; text-align:center;">
-      © 2025 The Mountain Path<br>
-      <a href="https://www.linkedin.com/in/trichyravis" target="_blank">LinkedIn</a> &nbsp;|&nbsp;
-      <a href="https://github.com/trichyravis" target="_blank">GitHub</a>
+
+    <div style="height:1px; background:{GOLD}33; margin:14px 0;"></div>
+
+    <div style="font-size:11px; color:#ADD8E6; text-align:center; line-height:1.8;">
+      <span style="color:#ffffff; font-weight:600;">© 2025 The Mountain Path</span><br>
+      <a href="https://www.linkedin.com/in/trichyravis" target="_blank"
+         style="color:{GOLD} !important; font-weight:600;">LinkedIn</a>
+      <span style="color:{GOLD};">  |  </span>
+      <a href="https://github.com/trichyravis" target="_blank"
+         style="color:{GOLD} !important; font-weight:600;">GitHub</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -539,20 +826,17 @@ if page == "🏠 Home":
     """, unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
-    for col, icon, val, label in [
-        (c1, "📐", "P(d) = log₁₀(1+1/d)", "Benford Formula"),
-        (c2, "📊", "30.1%", "Numbers Starting with 1"),
-        (c3, "🔍", "3 Live Caselets", "Fraud Scenarios"),
-        (c4, "🤖", "Isolation Forest", "ML Anomaly Detection"),
-    ]:
-        col.metric(label, val)
+    c1.metric("Benford Formula",       "P(d) = log₁₀(1+1/d)")
+    c2.metric("Numbers Starting with 1", "30.1%",  delta="Most common first digit",  delta_color="off")
+    c3.metric("Live Caselets",          "3",       delta="GST · Expense · Banking",   delta_color="off")
+    c4.metric("ML Method",              "Isolation Forest", delta="Anomaly Detection", delta_color="off")
 
     st.markdown("---")
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.markdown("### 📌 What You Will Learn")
-        for item in [
+        learn_items = [
             ("📐 The Mathematics", "Understand Benford's Law from first principles with the logarithmic intuition"),
             ("📊 Statistical Tests", "Chi-squared, MAD, Z-score and KS tests with worked examples"),
             ("🏦 GST Fraud", "Detect fictitious invoice fraud in GST returns using digit analysis"),
@@ -560,13 +844,17 @@ if page == "🏠 Home":
             ("🏛️ Bank Structuring", "Catch PMLA threshold gaming in banking transactions"),
             ("🤖 ML Methods", "Isolation Forest for multivariate transaction anomaly detection"),
             ("⚖️ Ethics", "Responsible use of fraud analytics in practice"),
-        ]:
-            st.markdown(f"""
-            <div class="mp-card">
-              <b style="color:{GOLD};">{item[0]}</b>
-              <span style="color:{TXT}; margin-left:8px;">{item[1]}</span>
-            </div>
-            """, unsafe_allow_html=True)
+        ]
+        for item in learn_items:
+            st.markdown(
+                f'''<div style="background:#0d1b2e; border:1px solid #FFD70044;
+                    border-left:4px solid #FFD700; border-radius:10px;
+                    padding:14px 18px; margin-bottom:10px;">
+                  <span style="color:#FFD700; font-weight:700; font-size:14px;">{item[0]}</span><br>
+                  <span style="color:#e6f1ff; font-size:13px; line-height:1.5;">{item[1]}</span>
+                </div>''',
+                unsafe_allow_html=True
+            )
 
     with col2:
         st.markdown("### 🎯 Benford's Law at a Glance")
