@@ -1,7 +1,7 @@
 """
 =============================================================================
 THE MOUNTAIN PATH - WORLD OF FINANCE
-Benford's Law, Fraud Analytics & Anomaly Detection
+Financial Data Wrangling & Cleaning
 Interactive Learning Platform
 Prof. V. Ravichandran | themountainpathacademy.com
 =============================================================================
@@ -13,9 +13,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import stats
-from sklearn.ensemble import IsolationForest
+from scipy.interpolate import CubicSpline
+from sklearn.impute import KNNImputer
 from sklearn.preprocessing import StandardScaler
-import zipfile, io
+from sklearn.ensemble import IsolationForest
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -23,14 +24,14 @@ warnings.filterwarnings("ignore")
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Benford's Law | The Mountain Path",
+    page_title="Financial Data Wrangling | The Mountain Path",
     page_icon="🏔️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ─────────────────────────────────────────────────────────────
-# DESIGN TOKENS
+# DESIGN TOKENS  (exact match to Benford app / themountainpathacademy.com)
 # ─────────────────────────────────────────────────────────────
 DARK_BLUE  = "#003366"
 MID_BLUE   = "#004d80"
@@ -48,558 +49,433 @@ BG_GRAD    = "linear-gradient(135deg,#1a2332,#243447,#2a3f5f)"
 # ─────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-  .stApp {{
-    background: {BG_GRAD} !important;
-    color: {TXT} !important;
-    font-family: 'Segoe UI', Arial, sans-serif;
-  }}
-  .block-container {{ padding-top: 1.5rem; }}
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Source+Sans+3:wght@300;400;600&family=Fira+Code:wght@400;500&display=swap');
 
-  section[data-testid="stSidebar"] {{
-    background: #0a1628 !important;
-    border-right: 3px solid {GOLD} !important;
-  }}
-  section[data-testid="stSidebar"] * {{ color: #ffffff !important; }}
-  section[data-testid="stSidebar"] label,
-  section[data-testid="stSidebar"] .stRadio label,
-  section[data-testid="stSidebar"] .stRadio p,
-  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
-  section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span {{
-    color: #ffffff !important; font-size: 13px !important;
-  }}
-  section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {{
-    background: {DARK_BLUE}aa !important; border-radius: 6px; color: {GOLD} !important;
-  }}
-  section[data-testid="stSidebar"] h1,
-  section[data-testid="stSidebar"] h2,
-  section[data-testid="stSidebar"] h3,
-  section[data-testid="stSidebar"] h4 {{ color: {GOLD} !important; }}
-  section[data-testid="stSidebar"] a {{ color: {GOLD} !important; text-decoration: none; }}
-  section[data-testid="stSidebar"] a:hover {{ color: {LIGHT_BLUE} !important; }}
-  section[data-testid="stSidebar"] hr {{ border-color: {GOLD}55 !important; }}
-  section[data-testid="stSidebar"] .stRadio > label {{
-    color: {GOLD} !important; font-weight: 700 !important;
-    font-size: 13px !important; letter-spacing: 0.5px; text-transform: uppercase;
-  }}
+.stApp {{
+  background: {BG_GRAD} !important;
+  color: {TXT} !important;
+  font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+}}
+.block-container {{ padding-top: 1.5rem; max-width:1180px; }}
 
-  h1, h2, h3, h4 {{ color: {GOLD} !important; }}
-  p, li, span {{ color: {TXT}; }}
+section[data-testid="stSidebar"] {{
+  background: #0a1628 !important;
+  border-right: 3px solid {GOLD} !important;
+}}
+section[data-testid="stSidebar"] * {{ color: #ffffff !important; }}
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stRadio label,
+section[data-testid="stSidebar"] .stRadio p,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span {{
+  color: #ffffff !important; font-size: 13px !important;
+}}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {{
+  background: {DARK_BLUE}aa !important; border-radius: 6px; color: {GOLD} !important;
+}}
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] h4 {{ color: {GOLD} !important; }}
+section[data-testid="stSidebar"] a {{ color: {GOLD} !important; text-decoration: none; }}
+section[data-testid="stSidebar"] a:hover {{ color: {LIGHT_BLUE} !important; text-decoration: underline; }}
+section[data-testid="stSidebar"] hr {{ border-color: {GOLD}55 !important; }}
+section[data-testid="stSidebar"] .stRadio > label {{
+  color: {GOLD} !important; font-weight: 700 !important;
+  font-size: 13px !important; letter-spacing: 0.5px; text-transform: uppercase;
+}}
 
-  [data-testid="metric-container"] {{
-    background: #0d1b2e !important; border: 1px solid {GOLD}55 !important;
-    border-radius: 10px !important; padding: 14px !important;
-  }}
-  [data-testid="metric-container"] [data-testid="stMetricLabel"] p {{
-    color: {LIGHT_BLUE} !important; font-size: 12px !important;
-    font-weight: 600 !important; text-transform: uppercase; letter-spacing: 0.5px;
-  }}
-  [data-testid="metric-container"] [data-testid="stMetricValue"] {{
-    color: {GOLD} !important; font-size: 26px !important; font-weight: 800 !important;
-  }}
-  [data-testid="metric-container"] [data-testid="stMetricDelta"] {{
-    color: {MUTED} !important; font-size: 11px !important;
-  }}
+h1, h2, h3, h4 {{ color: {GOLD} !important; font-family: 'Playfair Display', serif !important; }}
+p, li, span {{ color: {TXT}; }}
 
-  .stTabs [data-baseweb="tab-list"] {{
-    background: #0d1b2e !important; border-radius: 8px 8px 0 0;
-    gap: 3px; padding: 4px 4px 0; border-bottom: 2px solid {GOLD}33;
-  }}
-  .stTabs [data-baseweb="tab"] {{
-    color: {LIGHT_BLUE} !important; font-weight: 600 !important;
-    font-size: 13px !important; border-radius: 6px 6px 0 0; padding: 8px 16px;
-    background: #152035 !important; border: 1px solid {GOLD}22 !important;
-    border-bottom: none !important; transition: all 0.2s;
-  }}
-  .stTabs [data-baseweb="tab"]:hover {{ color: {GOLD} !important; background: {DARK_BLUE} !important; }}
-  .stTabs [aria-selected="true"] {{
-    background: {DARK_BLUE} !important; color: {GOLD} !important;
-    border-bottom: 3px solid {GOLD} !important; font-weight: 700 !important;
-  }}
+[data-testid="metric-container"] {{
+  background: #0d1b2e !important; border: 1px solid {GOLD}55 !important;
+  border-radius: 10px !important; padding: 14px !important;
+}}
+[data-testid="metric-container"] [data-testid="stMetricLabel"] p {{
+  color: {LIGHT_BLUE} !important; font-size: 12px !important;
+  font-weight: 600 !important; text-transform: uppercase; letter-spacing: 0.5px;
+}}
+[data-testid="metric-container"] [data-testid="stMetricValue"] {{
+  color: {GOLD} !important; font-size: 26px !important; font-weight: 800 !important;
+}}
+[data-testid="metric-container"] [data-testid="stMetricDelta"] {{
+  color: {MUTED} !important; font-size: 11px !important;
+}}
 
-  .stAlert {{ border-radius: 8px !important; }}
-  div[data-testid="stInfo"] {{
-    background: #0d2240 !important; border-left: 4px solid {LIGHT_BLUE} !important; color: {TXT} !important;
-  }}
-  div[data-testid="stSuccess"] {{
-    background: #0a2a14 !important; border-left: 4px solid {GREEN} !important; color: #c3f0ca !important;
-  }}
-  div[data-testid="stWarning"] {{
-    background: #2a1f00 !important; border-left: 4px solid {GOLD} !important; color: #ffe9a0 !important;
-  }}
-  div[data-testid="stError"] {{
-    background: #2a0a0a !important; border-left: 4px solid {RED} !important; color: #ffb3b3 !important;
-  }}
+.stTabs [data-baseweb="tab-list"] {{
+  background: #0d1b2e !important; border-radius: 8px 8px 0 0;
+  gap: 3px; padding: 4px 4px 0; border-bottom: 2px solid {GOLD}33;
+}}
+.stTabs [data-baseweb="tab"] {{
+  color: {LIGHT_BLUE} !important; font-weight: 600 !important; font-size: 13px !important;
+  border-radius: 6px 6px 0 0; padding: 8px 16px; background: #152035 !important;
+  border: 1px solid {GOLD}22 !important; border-bottom: none !important; transition: all 0.2s;
+}}
+.stTabs [data-baseweb="tab"]:hover {{ color: {GOLD} !important; background: {DARK_BLUE} !important; }}
+.stTabs [aria-selected="true"] {{
+  background: {DARK_BLUE} !important; color: {GOLD} !important;
+  border-bottom: 3px solid {GOLD} !important; font-weight: 700 !important;
+}}
 
-  .stTextArea textarea {{
-    background: #0d1b2e !important; color: {TXT} !important;
-    border: 1px solid {GOLD}44 !important; border-radius: 6px !important;
-    font-family: 'Courier New', monospace;
-  }}
-  .stSelectbox [data-baseweb="select"] div,
-  .stSelectbox [data-baseweb="select"] span {{
-    background: #0d1b2e !important; color: {TXT} !important; border-color: {GOLD}44 !important;
-  }}
-  .main .stRadio label p, .main .stRadio label span {{ color: {TXT} !important; font-size: 13px !important; }}
-  .stCheckbox label p, .stCheckbox label span {{ color: {TXT} !important; }}
-  .stSlider [data-baseweb="slider"] {{ color: {GOLD} !important; }}
+div[data-testid="stInfo"] {{
+  background: #0d2240 !important; border-left: 4px solid {LIGHT_BLUE} !important; color: {TXT} !important;
+}}
+div[data-testid="stSuccess"] {{
+  background: #0a2a14 !important; border-left: 4px solid {GREEN} !important; color: #c3f0ca !important;
+}}
+div[data-testid="stWarning"] {{
+  background: #2a1f00 !important; border-left: 4px solid {GOLD} !important; color: #ffe9a0 !important;
+}}
+div[data-testid="stError"] {{
+  background: #2a0a0a !important; border-left: 4px solid {RED} !important; color: #ffb3b3 !important;
+}}
 
-  [data-testid="stDataFrame"] {{ border-radius: 8px; overflow: hidden; }}
-  .stDataFrame thead tr th {{
-    background: {DARK_BLUE} !important; color: {GOLD} !important; font-weight: 700 !important;
-  }}
-  .stDataFrame tbody tr td {{ color: {TXT} !important; background: #0d1b2e !important; }}
-  .stDataFrame tbody tr:nth-child(even) td {{ background: #112240 !important; }}
+.stSelectbox [data-baseweb="select"] div,
+.stSelectbox [data-baseweb="select"] span {{
+  background: #0d1b2e !important; color: {TXT} !important; border-color: {GOLD}44 !important;
+}}
+.stTextArea textarea {{
+  background: #0d1b2e !important; color: {TXT} !important;
+  border: 1px solid {GOLD}44 !important; border-radius: 6px !important;
+  font-family: 'Fira Code', monospace;
+}}
+.main .stRadio label p, .main .stRadio label span {{ color: {TXT} !important; }}
+.stCheckbox label p, .stCheckbox label span {{ color: {TXT} !important; }}
 
-  [data-testid="stFileUploader"] {{
-    background: #0d1b2e !important; border: 2px dashed {GOLD}55 !important; border-radius: 8px !important;
-  }}
-  [data-testid="stFileUploader"] span, [data-testid="stFileUploader"] p {{ color: {LIGHT_BLUE} !important; }}
+[data-testid="stDataFrame"] {{ border-radius: 8px; overflow: hidden; }}
+.stDataFrame thead tr th {{
+  background: {DARK_BLUE} !important; color: {GOLD} !important; font-weight: 700 !important;
+}}
+.stDataFrame tbody tr td {{ color: {TXT} !important; background: #0d1b2e !important; }}
+.stDataFrame tbody tr:nth-child(even) td {{ background: #112240 !important; }}
 
-  /* Expander — modern + legacy selectors */
-  .streamlit-expanderHeader {{
-    background: #0d1b2e !important; color: {GOLD} !important;
-    border-radius: 6px !important; font-weight: 600 !important;
-  }}
-  .streamlit-expanderContent {{
-    background: #0a1628 !important; border: 1px solid {GOLD}22 !important;
-  }}
-  [data-testid="stExpander"] {{
-    background: #0d1b2e !important; border: 1px solid {GOLD}33 !important; border-radius: 8px !important;
-  }}
-  [data-testid="stExpander"] summary {{
-    background: #0d1b2e !important; color: {LIGHT_BLUE} !important;
-    border-radius: 8px !important; padding: 10px 14px !important;
-  }}
-  [data-testid="stExpander"] summary:hover {{ background: {DARK_BLUE} !important; color: {GOLD} !important; }}
-  [data-testid="stExpander"][open] summary {{
-    background: {DARK_BLUE} !important; color: {GOLD} !important;
-    border-bottom: 1px solid {GOLD}44 !important; border-radius: 8px 8px 0 0 !important;
-  }}
-  [data-testid="stExpander"] summary *,
-  [data-testid="stExpander"] summary p,
-  [data-testid="stExpander"] summary span {{ color: {LIGHT_BLUE} !important; font-weight: 600 !important; }}
-  [data-testid="stExpander"] summary:hover *,
-  [data-testid="stExpander"][open] summary * {{ color: {GOLD} !important; }}
-  [data-testid="stExpander"] summary svg {{ fill: {LIGHT_BLUE} !important; }}
-  [data-testid="stExpander"] summary:hover svg,
-  [data-testid="stExpander"][open] summary svg {{ fill: {GOLD} !important; }}
+[data-testid="stFileUploader"] {{
+  background: #0d1b2e !important; border: 2px dashed {GOLD}55 !important; border-radius: 8px !important;
+}}
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] p {{ color: {LIGHT_BLUE} !important; }}
 
-  .stButton > button {{
-    background: {DARK_BLUE} !important; color: {GOLD} !important;
-    border: 2px solid {GOLD} !important; border-radius: 8px !important;
-    font-weight: 700 !important; font-size: 14px !important;
-    padding: 10px 24px !important; transition: all 0.2s !important;
-  }}
-  .stButton > button:hover {{ background: {GOLD} !important; color: {DARK_BLUE} !important; }}
-  .stButton > button[kind="primary"] {{ background: {GOLD} !important; color: {DARK_BLUE} !important; }}
-  .stButton > button[kind="primary"]:hover {{ background: #e6c200 !important; }}
+/* ══ EXPANDER — full coverage all states ══ */
+.streamlit-expanderHeader {{
+  background: #0d1b2e !important; color: {GOLD} !important;
+  border-radius: 6px !important; font-weight: 600 !important;
+}}
+.streamlit-expanderContent {{
+  background: #0a1628 !important; border: 1px solid {GOLD}22 !important;
+}}
+/* Modern Streamlit expander selectors */
+[data-testid="stExpander"] {{
+  background: #0d1b2e !important;
+  border: 1px solid {GOLD}33 !important;
+  border-radius: 8px !important;
+}}
+[data-testid="stExpander"] summary {{
+  background: #0d1b2e !important;
+  color: {LIGHT_BLUE} !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+}}
+[data-testid="stExpander"] summary:hover {{
+  background: {DARK_BLUE} !important;
+  color: {GOLD} !important;
+}}
+[data-testid="stExpander"][open] summary {{
+  background: {DARK_BLUE} !important;
+  color: {GOLD} !important;
+  border-bottom: 1px solid {GOLD}44 !important;
+  border-radius: 8px 8px 0 0 !important;
+}}
+/* All text nodes inside the summary */
+[data-testid="stExpander"] summary *,
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+[data-testid="stExpander"] summary div {{
+  color: {LIGHT_BLUE} !important;
+  font-weight: 600 !important;
+}}
+[data-testid="stExpander"] summary:hover *,
+[data-testid="stExpander"] summary:hover p,
+[data-testid="stExpander"] summary:hover span,
+[data-testid="stExpander"][open] summary *,
+[data-testid="stExpander"][open] summary p,
+[data-testid="stExpander"][open] summary span {{
+  color: {GOLD} !important;
+}}
+/* Expander body */
+[data-testid="stExpander"] > div[data-testid="stExpanderDetails"] {{
+  background: #0a1628 !important;
+  border-top: 1px solid {GOLD}22 !important;
+  padding: 12px 16px !important;
+}}
+/* Arrow/chevron icon */
+[data-testid="stExpander"] summary svg {{
+  fill: {LIGHT_BLUE} !important;
+  color: {LIGHT_BLUE} !important;
+}}
+[data-testid="stExpander"] summary:hover svg,
+[data-testid="stExpander"][open] summary svg {{
+  fill: {GOLD} !important;
+  color: {GOLD} !important;
+}}
 
-  /* Download buttons — match app design */
-  [data-testid="stDownloadButton"] > button {{
-    background: {DARK_BLUE} !important; color: {GOLD} !important;
-    border: 2px solid {GOLD} !important; border-radius: 8px !important;
-    font-weight: 700 !important; font-size: 14px !important;
-    padding: 10px 24px !important; width: 100% !important; transition: all 0.2s !important;
-  }}
-  [data-testid="stDownloadButton"] > button:hover {{
-    background: {GOLD} !important; color: {DARK_BLUE} !important;
-  }}
-  [data-testid="stDownloadButton"] > button p,
-  [data-testid="stDownloadButton"] > button span,
-  [data-testid="stDownloadButton"] > button div {{ color: {GOLD} !important; font-weight: 700 !important; }}
-  [data-testid="stDownloadButton"] > button:hover p,
-  [data-testid="stDownloadButton"] > button:hover span,
-  [data-testid="stDownloadButton"] > button:hover div {{ color: {DARK_BLUE} !important; }}
+.stButton > button {{
+  background: {DARK_BLUE} !important; color: {GOLD} !important;
+  border: 2px solid {GOLD} !important; border-radius: 8px !important;
+  font-weight: 700 !important; font-size: 14px !important;
+  padding: 10px 24px !important; transition: all 0.2s !important;
+}}
+.stButton > button:hover {{
+  background: {GOLD} !important; color: {DARK_BLUE} !important;
+}}
+.stButton > button[kind="primary"] {{
+  background: {GOLD} !important; color: {DARK_BLUE} !important;
+}}
 
-  .stProgress > div > div > div > div {{ background: {GOLD} !important; }}
-  .stProgress > div > div > div {{ background: #0d1b2e !important; }}
+/* ══ DOWNLOAD BUTTONS — match app design ══ */
+[data-testid="stDownloadButton"] > button {{
+  background: {DARK_BLUE} !important;
+  color: {GOLD} !important;
+  border: 2px solid {GOLD} !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  padding: 10px 24px !important;
+  width: 100% !important;
+  transition: all 0.2s !important;
+}}
+[data-testid="stDownloadButton"] > button:hover {{
+  background: {GOLD} !important;
+  color: {DARK_BLUE} !important;
+  border-color: {GOLD} !important;
+}}
+[data-testid="stDownloadButton"] > button p,
+[data-testid="stDownloadButton"] > button span,
+[data-testid="stDownloadButton"] > button div {{
+  color: {GOLD} !important;
+  font-weight: 700 !important;
+}}
+[data-testid="stDownloadButton"] > button:hover p,
+[data-testid="stDownloadButton"] > button:hover span,
+[data-testid="stDownloadButton"] > button:hover div {{
+  color: {DARK_BLUE} !important;
+}}
 
-  .mp-card {{
-    background: #0d1b2e; border: 1px solid {GOLD}44;
-    border-left: 4px solid {GOLD}; border-radius: 10px;
-    padding: 18px 22px; margin-bottom: 14px; color: {TXT};
-  }}
-  .mp-card-red {{
-    background: #1a0a0a; border: 1px solid {RED}66;
-    border-left: 4px solid {RED}; border-radius: 10px;
-    padding: 18px 22px; margin-bottom: 14px; color: {TXT};
-  }}
-  .mp-card-green {{
-    background: #0a1a0a; border: 1px solid {GREEN}66;
-    border-left: 4px solid {GREEN}; border-radius: 10px;
-    padding: 18px 22px; margin-bottom: 14px; color: {TXT};
-  }}
-  .mp-card-blue {{
-    background: #0a1428; border: 1px solid {LIGHT_BLUE}66;
-    border-left: 4px solid {LIGHT_BLUE}; border-radius: 10px;
-    padding: 18px 22px; margin-bottom: 14px; color: {TXT};
-  }}
-  .hero-wrap {{
-    background: linear-gradient(135deg,{DARK_BLUE},{MID_BLUE});
-    border: 2px solid {GOLD}; border-radius: 14px;
-    padding: 28px 34px; text-align: center; margin-bottom: 22px;
-  }}
-  .badge {{
-    display: inline-block; background: {GOLD}; color: {DARK_BLUE};
-    font-weight: 700; font-size: 11px; padding: 3px 10px;
-    border-radius: 20px; margin: 2px; user-select: none;
-  }}
-  .badge-red {{ background: {RED}; color: #ffffff; }}
-  .badge-green {{ background: {GREEN}; color: #ffffff; }}
-  .formula-box {{
-    background: linear-gradient(135deg,#001a40,{DARK_BLUE});
-    border: 2px solid {GOLD}; border-radius: 10px;
-    padding: 18px 24px; text-align: center; margin: 14px 0; user-select: none;
-  }}
-  .verdict-ok {{
-    background: linear-gradient(90deg,#0d2e0d,#0a1628); border-left: 5px solid {GREEN};
-    border-radius: 8px; padding: 14px 20px; color: #c3f0ca; font-weight: 700;
-    font-size: 15px; margin: 10px 0;
-  }}
-  .verdict-warn {{
-    background: linear-gradient(90deg,#2a1f00,#0a1628); border-left: 5px solid {GOLD};
-    border-radius: 8px; padding: 14px 20px; color: {GOLD}; font-weight: 700;
-    font-size: 15px; margin: 10px 0;
-  }}
-  .verdict-bad {{
-    background: linear-gradient(90deg,#2a0000,#0a1628); border-left: 5px solid {RED};
-    border-radius: 8px; padding: 14px 20px; color: #ffb3b3; font-weight: 700;
-    font-size: 15px; margin: 10px 0;
-  }}
-  a {{ color: {GOLD} !important; text-decoration: none; }}
-  a:hover {{ color: {LIGHT_BLUE} !important; text-decoration: underline; }}
+.mp-card {{
+  background: #0d1b2e; border: 1px solid {GOLD}44;
+  border-left: 4px solid {GOLD}; border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 14px; color: {TXT};
+}}
+.mp-card-red {{
+  background: #1a0a0a; border: 1px solid {RED}66;
+  border-left: 4px solid {RED}; border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 14px; color: {TXT};
+}}
+.mp-card-green {{
+  background: #0a1a0a; border: 1px solid {GREEN}66;
+  border-left: 4px solid {GREEN}; border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 14px; color: {TXT};
+}}
+.mp-card-blue {{
+  background: #0a1428; border: 1px solid {LIGHT_BLUE}66;
+  border-left: 4px solid {LIGHT_BLUE}; border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 14px; color: {TXT};
+}}
+.hero-wrap {{
+  background: linear-gradient(135deg,{DARK_BLUE},{MID_BLUE});
+  border: 2px solid {GOLD}; border-radius: 14px;
+  padding: 28px 34px; margin-bottom: 22px;
+}}
+.badge {{
+  display: inline-block; background: {GOLD}; color: {DARK_BLUE};
+  font-weight: 700; font-size: 11px; padding: 3px 10px;
+  border-radius: 20px; margin: 2px; user-select: none;
+}}
+.badge-green {{ background: {GREEN}; color: #ffffff; }}
+.badge-red   {{ background: {RED};   color: #ffffff; }}
+.badge-blue  {{ background: {LIGHT_BLUE}33; color: {LIGHT_BLUE}; border: 1px solid {LIGHT_BLUE}55; }}
+.formula-box {{
+  background: linear-gradient(135deg,#001a40,{DARK_BLUE});
+  border: 2px solid {GOLD}; border-radius: 10px;
+  padding: 18px 24px; text-align: center; margin: 14px 0;
+}}
+.verdict-ok {{
+  background: linear-gradient(90deg,#0d2e0d,#0a1628);
+  border-left: 5px solid {GREEN}; border-radius: 8px;
+  padding: 14px 20px; color: #c3f0ca;
+  font-weight: 700; font-size: 15px; margin: 10px 0;
+}}
+.verdict-warn {{
+  background: linear-gradient(90deg,#2a1f00,#0a1628);
+  border-left: 5px solid {GOLD}; border-radius: 8px;
+  padding: 14px 20px; color: {GOLD};
+  font-weight: 700; font-size: 15px; margin: 10px 0;
+}}
+.verdict-bad {{
+  background: linear-gradient(90deg,#2a0000,#0a1628);
+  border-left: 5px solid {RED}; border-radius: 8px;
+  padding: 14px 20px; color: #ffb3b3;
+  font-weight: 700; font-size: 15px; margin: 10px 0;
+}}
+a {{ color: {GOLD} !important; text-decoration: none; }}
+a:hover {{ color: {LIGHT_BLUE} !important; text-decoration: underline; }}
+code, pre {{
+  font-family: 'Fira Code', monospace !important;
+  background: #060d1a !important; color: #a8d8ea !important;
+  border: 1px solid {GOLD}22 !important; border-radius: 6px !important;
+  font-size: 0.84rem !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# BENFORD ENGINE
-# ─────────────────────────────────────────────────────────────
-BENFORD = {d: np.log10(1 + 1/d) for d in range(1, 10)}
-
-def first_digit(x):
-    x = abs(float(x))
-    if x <= 0: return None
-    s = f"{x:.10e}"
-    return int(s[0])
-
-def extract_digits(arr):
-    digits = [first_digit(x) for x in arr if x > 0]
-    return [d for d in digits if d is not None]
-
-def benford_analysis(data):
-    data = np.array(data, dtype=float)
-    data = data[data > 0]
-    n = len(data)
-    if n == 0: return None
-    digits = extract_digits(data)
-    counts = {d: digits.count(d) for d in range(1, 10)}
-    obs_p  = {d: counts[d] / n for d in range(1, 10)}
-    exp_p  = BENFORD.copy()
-    expected = {d: exp_p[d] * n for d in range(1, 10)}
-    chi2 = sum((counts[d] - expected[d])**2 / expected[d] for d in range(1, 10))
-    p_chi2 = 1 - stats.chi2.cdf(chi2, df=8)
-    mad = sum(abs(obs_p[d] - exp_p[d]) for d in range(1, 10)) / 9
-    z = {}
-    for d in range(1, 10):
-        p_b = exp_p[d]
-        se = np.sqrt(p_b * (1 - p_b) / n)
-        z[d] = (abs(obs_p[d] - p_b) - 1/(2*n)) / se if se > 0 else 0
-    cdf_obs = np.cumsum([obs_p[d] for d in range(1, 10)])
-    cdf_ben = np.cumsum([exp_p[d] for d in range(1, 10)])
-    ks_stat = float(np.max(np.abs(cdf_obs - cdf_ben)))
-    if mad < 0.006:   verdict, level = "CLOSE CONFORMITY — No significant anomaly", "ok"
-    elif mad < 0.012: verdict, level = "ACCEPTABLE CONFORMITY — Monitor", "warn"
-    elif mad < 0.015: verdict, level = "MARGINAL CONFORMITY — Review Recommended", "warn"
-    else:             verdict, level = "NON-CONFORMING — INVESTIGATE IMMEDIATELY", "bad"
-    return dict(n=n, counts=counts, obs_p=obs_p, exp_p=exp_p, expected=expected,
-                chi2=chi2, p_chi2=p_chi2, mad=mad, z=z, ks=ks_stat,
-                verdict=verdict, level=level, digits=digits)
-
-def last_digit_analysis(data):
-    data = np.array(data, dtype=float)
-    data = data[data > 0]
-    last_digits = [int(str(int(abs(x)))[-1]) for x in data if x >= 1]
-    counts = {d: last_digits.count(d) for d in range(10)}
-    n = len(last_digits)
-    probs = {d: counts[d]/n for d in range(10)} if n > 0 else {}
-    round_pct = (counts.get(0, 0) + counts.get(5, 0)) / n * 100 if n > 0 else 0
-    return counts, probs, round_pct
-
-# ─────────────────────────────────────────────────────────────
-# CHART FACTORY
+# SHARED PLOTLY THEME
 # ─────────────────────────────────────────────────────────────
 PL = dict(
     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor=CARD_BG,
-    font=dict(color=TXT, family="Segoe UI, Arial"),
+    font=dict(color=TXT, family="Source Sans 3, Segoe UI, Arial"),
     margin=dict(l=40, r=20, t=50, b=40),
 )
 
-def chart_first_digit(result, title="Benford Analysis"):
-    digits = list(range(1, 10))
-    obs = [result["obs_p"][d]*100 for d in digits]
-    ben = [result["exp_p"][d]*100 for d in digits]
-    z_vals = [result["z"][d] for d in digits]
-    fig = make_subplots(rows=1, cols=2,
-        subplot_titles=["First-Digit Frequency vs Benford's Law",
-                        "Z-Score per Digit (Statistical Significance)"],
-        horizontal_spacing=0.12)
-    fig.add_trace(go.Bar(x=[str(d) for d in digits], y=obs, name="Observed",
-        marker_color=DARK_BLUE, marker_line=dict(color=GOLD, width=1.2),
-        hovertemplate="Digit %{x}<br>Observed: %{y:.2f}%<extra></extra>"), row=1, col=1)
-    fig.add_trace(go.Bar(x=[str(d) for d in digits], y=ben, name="Benford's Law",
-        marker_color=GOLD, marker_opacity=0.85,
-        hovertemplate="Digit %{x}<br>Expected: %{y:.2f}%<extra></extra>"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[str(d) for d in digits], y=ben,
-        mode="lines+markers", name="Benford Curve",
-        line=dict(color="white", width=2, dash="dot"),
-        marker=dict(symbol="circle-open", size=7, color="white"), showlegend=False), row=1, col=1)
-    z_colors = [RED if z > 2.576 else "#fd7e14" if z > 1.96 else DARK_BLUE for z in z_vals]
-    fig.add_trace(go.Bar(x=[str(d) for d in digits], y=z_vals, name="Z-Score",
-        marker_color=z_colors, hovertemplate="Digit %{x}<br>Z = %{y:.3f}<extra></extra>",
-        showlegend=False), row=1, col=2)
-    for thr, col, lbl in [(1.96, "#fd7e14", "5% sig"), (2.576, RED, "1% sig")]:
-        fig.add_hline(y=thr, line_dash="dash", line_color=col,
-            annotation_text=lbl, row=1, col=2, annotation_font_color=col)
-    fig.update_layout(**PL, title=dict(text=f"<b>{title}</b>", font=dict(color=GOLD, size=14)),
-        barmode="group", height=420,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.25, font=dict(color=TXT)))
-    fig.update_xaxes(title_text="Leading Digit", title_font_color=MUTED, gridcolor="#2a3f5f", linecolor="#2a3f5f")
-    fig.update_yaxes(title_font_color=MUTED, gridcolor="#2a3f5f", linecolor="#2a3f5f")
-    return fig
+# ─────────────────────────────────────────────────────────────
+# DATA HELPERS
+# ─────────────────────────────────────────────────────────────
+GSEC_M = np.array([0.25, 0.5, 1, 2, 3, 5, 7, 10, 14, 30])
+GSEC_Y = np.array([6.55, 6.60, 6.68, 6.72, 6.79, 6.85, 6.91, 6.96, 7.02, 7.08])
 
-def chart_deviation(result):
-    digits = list(range(1, 10))
-    devs = [(result["obs_p"][d] - result["exp_p"][d])*100 for d in digits]
-    colors = [RED if d > 1.5 else GREEN if d < -1.5 else MID_BLUE for d in devs]
-    fig = go.Figure(go.Bar(x=[str(d) for d in digits], y=devs, marker_color=colors,
-        hovertemplate="Digit %{x}<br>Deviation: %{y:+.2f}%<extra></extra>",
-        text=[f"{v:+.1f}%" for v in devs], textposition="outside", textfont=dict(color=TXT, size=11)))
-    fig.add_hline(y=0, line_color="white", line_width=1.5)
-    fig.add_hline(y=1.5, line_dash="dash", line_color=RED, line_width=1, annotation_text="Alert +1.5%", annotation_font_color=RED)
-    fig.add_hline(y=-1.5, line_dash="dash", line_color=GOLD, line_width=1, annotation_text="Alert -1.5%", annotation_font_color=GOLD)
-    fig.update_layout(**PL, title=dict(text="<b>Deviation from Benford's Law (%)</b>", font=dict(color=GOLD, size=14)),
-        xaxis_title="Leading Digit", yaxis_title="Observed − Expected (%)", height=360)
-    return fig
+def nse_prices(n=252, seed=42):
+    rng = np.random.default_rng(seed)
+    dt  = pd.bdate_range("2023-01-02", periods=n)
+    return pd.DataFrame({
+        s: b + np.cumsum(rng.normal(0.3, sg, n))
+        for s, b, sg in [("RELIANCE",2800,50),("TCS",3500,80),
+                          ("HDFCBANK",1600,30),("INFY",1450,60),("ICICIBANK",950,25)]
+    }, index=dt)
 
-def chart_last_digit(probs):
-    digits = list(range(10))
-    vals = [probs.get(d, 0)*100 for d in digits]
-    colors = [RED if d in (0, 5) else DARK_BLUE for d in digits]
-    fig = go.Figure(go.Bar(x=[str(d) for d in digits], y=vals, marker_color=colors,
-        hovertemplate="Last digit %{x}<br>%{y:.1f}%<extra></extra>",
-        text=[f"{v:.1f}%" for v in vals], textposition="outside", textfont=dict(color=TXT, size=10)))
-    fig.add_hline(y=10, line_dash="dash", line_color=GOLD, annotation_text="Expected 10%", annotation_font_color=GOLD)
-    fig.update_layout(**PL, title=dict(text="<b>Last-Digit Distribution (Round-Number Test)</b>",
-        font=dict(color=GOLD, size=14)), xaxis_title="Last Digit", yaxis_title="Frequency (%)", height=360)
-    return fig
+def inject_miss(df, seed=42):
+    rng = np.random.default_rng(seed); df = df.copy()
+    df.iloc[50:54, 0] = np.nan
+    df.iloc[rng.choice(len(df), 15, replace=False), 1] = np.nan
+    df.iloc[220:, 2] = np.nan
+    df.iloc[rng.choice(range(150, len(df)), 8, replace=False), 3] = np.nan
+    return df
 
-def chart_log_histogram(data):
-    data = np.array(data, dtype=float); data = data[data > 0]
-    log_data = np.log10(data)
-    fig = go.Figure(go.Histogram(x=log_data, nbinsx=60, marker_color=MID_BLUE,
-        marker_line=dict(color=DARK_BLUE, width=0.3),
-        hovertemplate="log₁₀(Amount): %{x:.2f}<br>Count: %{y}<extra></extra>"))
-    for d in range(1, 10):
-        fig.add_vline(x=np.log10(d), line_color=GOLD, line_width=0.6, opacity=0.5)
-    fig.update_layout(**PL, title=dict(text="<b>Transaction Amount Distribution (Log₁₀ Scale)</b>",
-        font=dict(color=GOLD, size=14)), xaxis_title="log₁₀(Amount) — Gold lines mark digit boundaries",
-        yaxis_title="Count", height=350)
-    return fig
+def validate_ohlcv(df):
+    iss = []
+    for col in ["Open","High","Low","Close"]:
+        for idx in df[df[col]<=0].index:
+            iss.append({"Date":idx.date(),"Field":col,"Value":df.loc[idx,col],"Issue":"Non-positive price"})
+    v = df[(df.High<df.Low)|(df.High<df.Close)|(df.High<df.Open)|(df.Low>df.Close)|(df.Low>df.Open)]
+    for idx in v.index:
+        iss.append({"Date":idx.date(),"Field":"OHLC","Value":f"H={df.loc[idx,'High']:.0f} L={df.loc[idx,'Low']:.0f}","Issue":"OHLC violation"})
+    for idx in df[df.Volume==0].index:
+        iss.append({"Date":idx.date(),"Field":"Volume","Value":0,"Issue":"Zero volume on trading day"})
+    df2=df.copy(); df2["r"]=df2.Close.pct_change()
+    for idx in df2[df2.r.abs()>0.20].dropna().index:
+        iss.append({"Date":idx.date(),"Field":"Return","Value":f"{df2.loc[idx,'r']*100:.1f}%","Issue":"Extreme move >20%"})
+    pc = df.Close!=df.Close.shift(1)
+    for idx in df[pc.rolling(5).sum()==0].index:
+        iss.append({"Date":idx.date(),"Field":"Close","Value":df.loc[idx,"Close"],"Issue":"Stale price 5+ days"})
+    return pd.DataFrame(iss)
 
 # ─────────────────────────────────────────────────────────────
-# SHARED UI HELPERS
+# UI HELPERS
 # ─────────────────────────────────────────────────────────────
-def show_stats_panel(result):
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Sample Size",  f"{result['n']:,}")
-    c2.metric("Chi-Squared",  f"{result['chi2']:.2f}", delta=f"p = {result['p_chi2']:.4f}", delta_color="inverse")
-    c3.metric("MAD",          f"{result['mad']:.4f}", delta="Threshold: 0.015", delta_color="off")
-    c4.metric("KS Statistic", f"{result['ks']:.4f}")
-    css = {"ok":"verdict-ok","warn":"verdict-warn","bad":"verdict-bad"}
-    st.markdown(f'<div class="{css[result["level"]]}">🔍 {result["verdict"]}</div>', unsafe_allow_html=True)
-
-def show_digit_table(result):
-    rows = []
-    for d in range(1, 10):
-        z = result["z"][d]
-        flag = "🚨 ***" if z > 2.576 else "⚠️ **" if z > 1.96 else "⚡ *" if z > 1.645 else "✅"
-        rows.append({"Digit": d, "Observed": result["counts"][d],
-            "Expected": f"{result['expected'][d]:.1f}", "Obs %": f"{result['obs_p'][d]*100:.2f}%",
-            "Benford %": f"{result['exp_p'][d]*100:.2f}%",
-            "Deviation": f"{(result['obs_p'][d]-result['exp_p'][d])*100:+.2f}%",
-            "Z-Score": f"{z:.3f}", "Flag": flag})
-    st.dataframe(pd.DataFrame(rows).set_index("Digit"), use_container_width=True)
-
-def dl_btn(csv_bytes, filename, label="⬇️  Download CSV"):
-    st.download_button(label=label, data=csv_bytes, file_name=filename,
-                       mime="text/csv", use_container_width=True)
-
-def dl_info(rows, cols, note):
+def hero(title, subtitle, badges=None):
+    b = "".join(f'<span class="badge">{x}</span> ' for x in (badges or []))
     st.markdown(f"""
-    <div class="mp-card-blue" style="padding:12px 16px;margin-bottom:12px;">
-      <div style="font-size:0.78rem;color:{MUTED};margin-bottom:4px;
-           text-transform:uppercase;letter-spacing:0.05em;">Dataset Info</div>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:6px;">
-        <span style="font-size:0.85rem;color:{TXT};">📏 <b style="color:{GOLD};">{rows}</b> rows</span>
-        <span style="font-size:0.85rem;color:{TXT};">🗂️ <b style="color:{GOLD};">{cols}</b> columns</span>
-      </div>
-      <div style="font-size:0.82rem;color:{LIGHT_BLUE};">ℹ️ {note}</div>
+    <div class="hero-wrap">
+      <div style="font-size:36px;color:{GOLD};font-weight:900;
+           font-family:'Playfair Display',serif;letter-spacing:1px;">{title}</div>
+      <div style="font-size:15px;color:{TXT};margin:8px 0 12px;">{subtitle}</div>
+      {b}
     </div>""", unsafe_allow_html=True)
 
-def col_dict_table(col_defs):
-    """Render column definition table from list of (col, type, desc) tuples."""
-    st.dataframe(pd.DataFrame(
-        [{"Column": c, "Type": t, "Description": d} for c, t, d in col_defs]
-    ), use_container_width=True, hide_index=True)
+def shdr(icon, title):
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:10px;margin:1.4rem 0 0.5rem;">
+      <span style="font-size:1.3rem;">{icon}</span>
+      <span style="font-family:'Playfair Display',serif;font-size:1.25rem;
+                   font-weight:700;color:{LIGHT_BLUE};">{title}</span>
+    </div>
+    <div style="height:2px;background:linear-gradient(90deg,{GOLD},transparent);margin-bottom:1rem;"></div>
+    """, unsafe_allow_html=True)
 
-def zip_three(df1, name1, df2, name2, df3, name3, readme=""):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(name1, df1.to_csv(index=False))
-        zf.writestr(name2, df2.to_csv(index=False))
-        zf.writestr(name3, df3.to_csv(index=False))
-        if readme:
-            zf.writestr("README.txt", readme)
-    buf.seek(0)
-    return buf
+def mrow(items):
+    cols = st.columns(len(items))
+    for c, m in zip(cols, items): c.metric(m["lbl"], m["val"])
 
-# ─────────────────────────────────────────────────────────────
-# PRE-BUILD ALL THREE CASE DATASETS (deterministic, same seeds)
-# ─────────────────────────────────────────────────────────────
-
-# ── Case 1: GST Invoice Fraud ─────────────────────────────────
-np.random.seed(101)
-_fraud_invoices = np.concatenate([
-    np.random.uniform(50000, 59999, 80),
-    np.random.uniform(90000, 99000, 60),
-    np.random.choice([25000, 50000, 100000, 200000], 40),
-    np.random.uniform(10000, 19999, 20),
-])
-_supplier_pool = np.random.choice(["Shree Fab", "Aarav Traders", "Lotus Tex"], len(_fraud_invoices))
-_invoice_dates = pd.date_range("2023-04-01", periods=len(_fraud_invoices), freq="B")
-_fd1 = [first_digit(x) for x in _fraud_invoices]
-_ld1 = [int(str(int(abs(x)))[-1]) for x in _fraud_invoices]
-
-DF_CASE1 = pd.DataFrame({
-    "Invoice_Number":     [f"INV-{i+1:03d}" for i in range(len(_fraud_invoices))],
-    "Invoice_Date":       _invoice_dates.strftime("%Y-%m-%d"),
-    "Supplier":           _supplier_pool,
-    "Invoice_Amount_INR": np.round(_fraud_invoices, 2),
-    "GST_Rate_Pct":       np.random.choice([5, 12, 18], len(_fraud_invoices)),
-    "ITC_Claimed_INR":    np.round(_fraud_invoices * np.random.choice([0.05, 0.12, 0.18], len(_fraud_invoices)), 2),
-    "First_Digit":        _fd1,
-    "Last_Digit":         _ld1,
-    "Benford_Expected_Pct": [round(BENFORD.get(d, 0)*100, 2) for d in _fd1],
-    "Fraud_Flag":         1,
-})
-
-# ── Case 2: Expense Fraud ────────────────────────────────────
-np.random.seed(202)
-_team_clean = np.concatenate([10**np.random.uniform(2, 3.7, 900), np.random.exponential(2000, 300)])
-_sm_verma   = np.concatenate([np.random.uniform(4200, 4999, 120),
-                               np.random.choice([4500, 4800, 4999, 4950], 80),
-                               np.random.uniform(100, 3000, 50)])
-_employees_clean = np.random.choice(["R Patel","A Kumar","P Singh","N Mehta","K Sharma",
-                                      "S Gupta","M Iyer","D Rao","B Joshi"], len(_team_clean))
-_emp_labels = np.concatenate([_employees_clean, np.full(len(_sm_verma), "SM Verma")])
-_amounts_all = np.concatenate([_team_clean, _sm_verma])
-_claim_dates = pd.date_range("2023-04-01", periods=len(_amounts_all), freq="B")
-_fd2 = [first_digit(x) for x in _amounts_all]
-_ld2 = [int(str(int(abs(x)))[-1]) for x in np.maximum(_amounts_all, 1)]
-
-DF_CASE2 = pd.DataFrame({
-    "Claim_ID":           [f"CLM-{i+1:04d}" for i in range(len(_amounts_all))],
-    "Claim_Date":         _claim_dates.strftime("%Y-%m-%d"),
-    "Employee":           _emp_labels,
-    "Claim_Amount_INR":   np.round(_amounts_all, 2),
-    "Expense_Category":   np.random.choice(["Travel","Meals","Accommodation","Fuel","Miscellaneous"], len(_amounts_all)),
-    "First_Digit":        _fd2,
-    "Last_Digit":         _ld2,
-    "Benford_Expected_Pct": [round(BENFORD.get(d, 0)*100, 2) for d in _fd2],
-    "Near_5k_Threshold":  [1 if 4000 <= x < 5000 else 0 for x in _amounts_all],
-    "Fraud_Flag":         [1 if e == "SM Verma" else 0 for e in _emp_labels],
-})
-
-# ── Case 3: Bank Structuring ─────────────────────────────────
-np.random.seed(404)
-_deposits = np.concatenate([
-    np.random.uniform(920000, 998000, 30),
-    np.random.uniform(850000, 899000, 10),
-    np.random.uniform(970000, 999000, 5),
-])
-_dep_dates  = pd.date_range("2024-01-02", periods=len(_deposits), freq="D")
-_fd3 = [first_digit(x) for x in _deposits]
-_ld3 = [int(str(int(abs(x)))[-1]) for x in _deposits]
-
-DF_CASE3 = pd.DataFrame({
-    "Transaction_ID":       [f"TXN-{i+1:03d}" for i in range(len(_deposits))],
-    "Date":                 _dep_dates.strftime("%Y-%m-%d"),
-    "Transaction_Type":     "Cash Deposit",
-    "Amount_INR":           np.round(_deposits, 2),
-    "Amount_Lakhs":         np.round(_deposits / 100000, 4),
-    "Below_10L_Threshold":  [1 if x < 1000000 else 0 for x in _deposits],
-    "First_Digit":          _fd3,
-    "Last_Digit":           _ld3,
-    "Benford_Expected_Pct": [round(BENFORD.get(d, 0)*100, 2) for d in _fd3],
-    "CTR_Triggered":        [0 for _ in _deposits],
-    "Structuring_Flag":     1,
-    "Cumulative_Amount_INR": np.round(np.cumsum(_deposits), 2),
-})
+def footer():
+    st.markdown(f"""
+    <div style="text-align:center;color:{MUTED};font-size:12px;
+         padding:24px 0 10px;border-top:1px solid {GOLD}33;margin-top:32px;">
+      <b style="color:{GOLD};font-family:'Playfair Display',serif;">
+        The Mountain Path – World of Finance</b><br>
+      Prof. V. Ravichandran &nbsp;|&nbsp;
+      <a href="https://themountainpathacademy.com">themountainpathacademy.com</a>
+      &nbsp;|&nbsp;<a href="https://www.linkedin.com/in/trichyravis">LinkedIn</a>
+      &nbsp;|&nbsp;<a href="https://github.com/trichyravis">GitHub</a>
+    </div>""", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
-    <div style="text-align:center; padding:18px 10px 12px; background:#001428;
-         border-radius:10px; margin-bottom:12px; border:1px solid {GOLD}55;">
-      <div style="font-size:22px; color:{GOLD}; font-weight:900; letter-spacing:1px;">
+    <div style="text-align:center;padding:18px 10px 12px;background:#001428;
+         border-radius:10px;margin-bottom:12px;border:1px solid {GOLD}55;">
+      <div style="font-size:22px;color:{GOLD};font-weight:900;letter-spacing:1px;">
         🏔️ THE MOUNTAIN PATH</div>
-      <div style="font-size:11px; color:#ADD8E6; margin-top:4px; letter-spacing:2px; text-transform:uppercase;">
+      <div style="font-size:11px;color:#ADD8E6;margin-top:4px;letter-spacing:2px;text-transform:uppercase;">
         World of Finance</div>
-      <div style="height:2px; background:linear-gradient(90deg,transparent,{GOLD},transparent); margin:10px 0;"></div>
-      <div style="font-size:12px; color:#ffffff; font-weight:600;">Prof. V. Ravichandran</div>
-      <div style="font-size:11px; color:#ADD8E6; margin-top:3px;">
+      <div style="height:2px;background:linear-gradient(90deg,transparent,{GOLD},transparent);margin:10px 0;"></div>
+      <div style="font-size:12px;color:#ffffff;font-weight:600;">Prof. V. Ravichandran</div>
+      <div style="font-size:11px;color:#ADD8E6;margin-top:3px;">
         <a href="https://themountainpathacademy.com" target="_blank"
-           style="color:{GOLD} !important; text-decoration:none;">themountainpathacademy.com</a>
-      </div>
+           style="color:{GOLD} !important;">themountainpathacademy.com</a></div>
     </div>""", unsafe_allow_html=True)
 
-    st.markdown(f"""<div style="font-size:11px; color:{GOLD}; font-weight:700;
-         text-transform:uppercase; letter-spacing:1px; padding:4px 6px 6px; margin-bottom:4px;">
+    st.markdown(f"""<div style="font-size:11px;color:{GOLD};font-weight:700;
+         text-transform:uppercase;letter-spacing:1px;padding:4px 6px 6px;margin-bottom:4px;">
       📚 NAVIGATE</div>""", unsafe_allow_html=True)
 
-    page = st.radio("Navigate", [
-        "🏠 Home", "📖 Learn: Benford's Law", "📊 Interactive Analyzer",
-        "🏦 Case 1: GST Invoice Fraud", "💼 Case 2: Expense Report Fraud",
-        "🏛️ Case 3: Bank Structuring", "🤖 ML Anomaly Detection", "❓ Quiz & Assessment"],
-        label_visibility="collapsed")
+    page = st.radio("nav", [
+        "🏠 Home",
+        "🔍 Missing Data",
+        "📊 Outlier Detection",
+        "📅 Time Series Formatting",
+        "⚠️ Invalid Values",
+        "⚙️ Full Cleaning Pipeline",
+        "📚 Case Studies",
+        "📖 Study Guide & Quiz",
+    ], label_visibility="collapsed")
 
     st.markdown(f"""
-    <div style="margin-top:14px; padding:12px 14px; background:#001428;
-         border-radius:8px; border:1px solid {GOLD}33;">
-      <div style="font-size:11px; font-weight:700; color:{GOLD};
-           text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">🔑 Key Topics</div>
-      <div style="font-size:12px; color:#e6f1ff; line-height:1.9;">
-        <span style="color:{GOLD};">▸</span> Benford's Law Formula<br>
-        <span style="color:{GOLD};">▸</span> First &amp; Second Digit Tests<br>
-        <span style="color:{GOLD};">▸</span> Chi-Squared &amp; MAD Tests<br>
-        <span style="color:{GOLD};">▸</span> GST / Tax Fraud Detection<br>
-        <span style="color:{GOLD};">▸</span> Expense Reimbursement Fraud<br>
-        <span style="color:{GOLD};">▸</span> PMLA Structuring Detection<br>
+    <div style="margin-top:14px;padding:12px 14px;background:#001428;
+         border-radius:8px;border:1px solid {GOLD}33;">
+      <div style="font-size:11px;font-weight:700;color:{GOLD};
+           text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔑 Key Topics</div>
+      <div style="font-size:12px;color:#e6f1ff;line-height:1.9;">
+        <span style="color:{GOLD};">▸</span> MCAR · MAR · MNAR<br>
+        <span style="color:{GOLD};">▸</span> KNN &amp; MICE Imputation<br>
+        <span style="color:{GOLD};">▸</span> Z-Score · MAD · IQR<br>
         <span style="color:{GOLD};">▸</span> Isolation Forest ML<br>
-        <span style="color:{GOLD};">▸</span> Ethical Considerations
+        <span style="color:{GOLD};">▸</span> OHLCV Validation<br>
+        <span style="color:{GOLD};">▸</span> G-Sec Yield Curve<br>
+        <span style="color:{GOLD};">▸</span> NSE Business Calendar<br>
+        <span style="color:{GOLD};">▸</span> Winsorisation &amp; Transforms<br>
+        <span style="color:{GOLD};">▸</span> Study Guide &amp; Quiz
       </div>
     </div>
-    <div style="height:1px; background:{GOLD}33; margin:14px 0;"></div>
-    <div style="font-size:11px; color:#ADD8E6; text-align:center; line-height:1.8;">
-      <span style="color:#ffffff; font-weight:600;">© 2025 The Mountain Path</span><br>
+    <div style="height:1px;background:{GOLD}33;margin:14px 0;"></div>
+    <div style="font-size:11px;color:#ADD8E6;text-align:center;line-height:1.8;">
+      <span style="color:#ffffff;font-weight:600;">© 2025 The Mountain Path</span><br>
       <a href="https://www.linkedin.com/in/trichyravis" target="_blank"
-         style="color:{GOLD} !important; font-weight:600;">LinkedIn</a>
+         style="color:{GOLD} !important;font-weight:600;">LinkedIn</a>
       <span style="color:{GOLD};">  |  </span>
       <a href="https://github.com/trichyravis" target="_blank"
-         style="color:{GOLD} !important; font-weight:600;">GitHub</a>
+         style="color:{GOLD} !important;font-weight:600;">GitHub</a>
     </div>""", unsafe_allow_html=True)
 
 
@@ -607,1448 +483,2589 @@ with st.sidebar:
 # PAGE: HOME
 # ═════════════════════════════════════════════════════════════
 if page == "🏠 Home":
-    st.markdown(f"""
-    <div class="hero-wrap">
-      <div style="font-size:42px; color:{GOLD}; font-weight:900; letter-spacing:2px;">BENFORD'S LAW</div>
-      <div style="font-size:22px; color:{TXT}; margin:6px 0;">Fraud Analytics &amp; Anomaly Detection</div>
-      <div style="font-size:14px; color:{MUTED}; margin-top:10px;">
-        An Interactive Learning Platform &nbsp;|&nbsp; The Mountain Path – World of Finance</div>
-      <div style="margin-top:14px;">
-        <span class="badge">Financial Analytics</span>
-        <span class="badge">Fraud Detection</span>
-        <span class="badge">Statistical Testing</span>
-        <span class="badge">Machine Learning</span>
-        <span class="badge">Python</span>
-      </div>
-    </div>""", unsafe_allow_html=True)
+    hero("Financial Data Wrangling & Cleaning",
+         "An Interactive Learning Platform — The Mountain Path · World of Finance",
+         ["Missing Data","Outlier Detection","Time Series","Invalid Values","ML Pipeline","Python"])
 
     c1,c2,c3,c4 = st.columns(4)
-    c1.metric("Benford Formula", "P(d) = log₁₀(1+1/d)")
-    c2.metric("Numbers Starting with 1", "30.1%", delta="Most common first digit", delta_color="off")
-    c3.metric("Live Caselets", "3", delta="GST · Expense · Banking", delta_color="off")
-    c4.metric("ML Method", "Isolation Forest", delta="Anomaly Detection", delta_color="off")
+    c1.metric("GIGO Principle",      "Garbage In → Out",  delta="Clean data = credible model",  delta_color="off")
+    c2.metric("Knight Capital Loss", "USD 440M",          delta="45 minutes, Aug 2012",          delta_color="off")
+    c3.metric("Imputation Methods",  "6+",                delta="LOCF · KNN · MICE · Spline",    delta_color="off")
+    c4.metric("Outlier Methods",     "4 Statistical",     delta="+ Domain Rules + ML",            delta_color="off")
 
     st.markdown("---")
-    col1, col2 = st.columns([3, 2])
+    col1, col2 = st.columns([3,2])
     with col1:
-        st.markdown("### 📌 What You Will Learn")
-        for icon, title, desc in [
-            ("📐","The Mathematics","Understand Benford's Law from first principles"),
-            ("📊","Statistical Tests","Chi-squared, MAD, Z-score and KS tests"),
-            ("🏦","GST Fraud","Detect fictitious invoice fraud in GST returns"),
-            ("💼","Expense Fraud","Identify inflated corporate expense claims"),
-            ("🏛️","Bank Structuring","Catch PMLA threshold gaming in banking"),
-            ("🤖","ML Methods","Isolation Forest for multivariate anomaly detection"),
-            ("⚖️","Ethics","Responsible use of fraud analytics in practice"),
+        shdr("📌","What This Lab Covers")
+        for icon,title,desc in [
+            ("🔍","Missing Data","MCAR · MAR · MNAR classification, diagnosis & imputation (LOCF, KNN, MICE)"),
+            ("📊","Outlier Detection","Z-Score, Modified Z-Score (MAD), IQR, Isolation Forest on live NSE data"),
+            ("📅","Time Series Formatting","DatetimeIndex, NSE business calendar, OHLCV resampler, G-Sec yield curve"),
+            ("⚠️","Invalid Values","OHLC logic validation, stale price detection, duplicate timestamps"),
+            ("⚙️","Full Cleaning Pipeline","Production-grade FinancialDataCleaner class — end-to-end with audit trail"),
+            ("📚","Indian Market Cases","Demonetisation 2016 · IL&FS Default 2018 · NSE Feed Outage · Yes Bank 2020 · Franklin Templeton 2020"),
         ]:
-            st.markdown(f'''<div style="background:#0d1b2e; border:1px solid #FFD70044;
-                border-left:4px solid #FFD700; border-radius:10px; padding:14px 18px; margin-bottom:10px;">
-              <span style="color:#FFD700; font-weight:700; font-size:14px;">{icon} {title}</span><br>
-              <span style="color:#e6f1ff; font-size:13px;">{desc}</span>
-            </div>''', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="mp-card" style="display:flex;align-items:flex-start;
+                 gap:14px;padding:14px 18px;margin-bottom:8px;">
+              <span style="font-size:1.4rem;flex-shrink:0;">{icon}</span>
+              <div>
+                <div style="font-weight:700;color:{LIGHT_BLUE};font-size:0.95rem;">{title}</div>
+                <div style="color:{MUTED};font-size:0.82rem;margin-top:2px;">{desc}</div>
+              </div>
+            </div>""", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("### 🎯 Benford's Law at a Glance")
-        digits = list(range(1, 10)); probs = [BENFORD[d]*100 for d in digits]
-        fig = go.Figure(go.Bar(x=[str(d) for d in digits], y=probs,
-            marker_color=[DARK_BLUE if i < 3 else MID_BLUE for i in range(9)],
-            marker_line=dict(color=GOLD, width=1),
-            text=[f"{p:.1f}%" for p in probs], textposition="outside", textfont=dict(color=TXT, size=10)))
-        fig.update_layout(**PL, title=dict(text="<b>Expected First-Digit Frequency</b>",
-            font=dict(color=GOLD, size=13)), xaxis_title="Leading Digit",
-            yaxis_title="Probability (%)", height=340, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown(f"""<div class="formula-box">
-          <div style="color:{MUTED}; font-size:11px; margin-bottom:6px;">BENFORD'S LAW FORMULA</div>
-          <div style="color:{GOLD}; font-size:24px; font-weight:900; font-family:Georgia,serif;">
-            P(d) = log<sub>10</sub>(1 + 1/d)</div>
-          <div style="color:{LIGHT_BLUE}; font-size:11px; margin-top:6px;">d ∈ {{1,2,3,4,5,6,7,8,9}}</div>
+        shdr("🎯","Learning Objectives")
+        for i,obj in enumerate([
+            "Diagnose & classify data quality problems in real financial datasets",
+            "Select & implement appropriate missing data imputation strategies",
+            "Structure financial time series with correct indexing & frequency handling",
+            "Apply statistical & domain-specific methods to detect & manage outliers",
+            "Build a reproducible Python data-cleaning pipeline",
+            "Critically evaluate downstream impact of data quality decisions on model outputs",
+        ], 1):
+            st.markdown(f"""
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;">
+              <div style="width:28px;height:28px;background:{GOLD};color:{DARK_BLUE};
+                   border-radius:50%;display:flex;align-items:center;justify-content:center;
+                   font-weight:700;font-size:13px;flex-shrink:0;">{i}</div>
+              <span style="font-size:0.87rem;color:{TXT};padding-top:4px;">{obj}</span>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown(f"""<div class="formula-box" style="margin-top:14px;">
+        <div style="color:{MUTED};font-size:11px;margin-bottom:6px;">THE PIPELINE</div>
+        <div style="color:{GOLD};font-size:15px;font-weight:700;
+             font-family:'Playfair Display',serif;line-height:1.8;">
+          Ingest → Validate → Missing<br>→ Outliers → Format → Output
+        </div>
+        <div style="color:{LIGHT_BLUE};font-size:11px;margin-top:6px;">"Garbage In, Garbage Out" — GIGO</div>
         </div>""", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.info("""**How to Use:** Navigate using the sidebar. Start with *Learn: Benford's Law*,
-    then explore the three live case studies (each with downloadable raw data), the interactive
-    analyzer, and finally the ML module.""")
+    st.markdown(f"""<div class="mp-card-red">
+    <b style="color:{RED};font-size:15px;">⚡ Knight Capital Incident — 1 August 2012</b><br><br>
+    Knight Capital Group lost <b style="color:{GOLD};">USD 440 million in 45 minutes</b> due to a
+    software deployment error where stale, erroneous order data triggered unintended trading.
+    Root cause: failure to validate and clean stale routing data before deployment.<br><br>
+    <b>Lesson:</b> A single undetected invalid value can cascade into catastrophic financial loss.
+    </div>""", unsafe_allow_html=True)
+    st.info("👈 **Use the sidebar** to navigate between modules.")
+    footer()
 
 
 # ═════════════════════════════════════════════════════════════
-# PAGE: LEARN
+# PAGE: MISSING DATA
 # ═════════════════════════════════════════════════════════════
-elif page == "📖 Learn: Benford's Law":
-    st.markdown("## 📖 Understanding Benford's Law")
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📜 History & Concept","📐 Mathematics","📊 Extended Analysis",
-        "🧪 Statistical Tests","⚠️ Limitations & Ethics"])
+elif page == "🔍 Missing Data":
+    hero("Missing Data — Diagnosis & Treatment",
+         "Classification · Detection · Imputation Strategies for Financial Datasets",
+         ["MCAR","MAR","MNAR","KNN","MICE"])
+
+    tab1,tab2,tab3,tab4 = st.tabs([
+        "📘 Theory & Taxonomy","🔬 Interactive Diagnosis",
+        "🛠️ Imputation Methods","📐 Method Comparison"])
 
     with tab1:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.markdown("### 🕰️ A Discovery from a Worn Logarithm Book")
-            for title, body, cls in [
-                ("1881 — Simon Newcomb",
-                 "An American astronomer noticed early logarithm table pages were more worn — people looked up numbers starting with 1 far more often.",
-                 "mp-card"),
-                ("1938 — Frank Benford",
-                 "Benford tested <b>20,229 data points</b> from 20 datasets: river areas, atomic weights, baseball stats, street addresses. Same pattern appeared every time.",
-                 "mp-card"),
-                ("The Core Insight",
-                 "The leading digit is <em>not</em> uniformly distributed. Digit 1 appears ~30% — six times more often than digit 9 (≈4.6%).",
-                 "mp-card-green"),
-            ]:
-                color = GOLD if cls == "mp-card" else GREEN
-                st.markdown(f'<div class="{cls}"><b style="color:{color};">{title}</b><br>{body}</div>', unsafe_allow_html=True)
-
-            st.markdown("### 📋 When Does Benford's Law Apply?")
-            ca, cb = st.columns(2)
-            with ca:
-                st.success("✅ **Follows Benford's Law**")
-                for i in ["Revenue and sales figures","Expense and invoice amounts","Tax return values",
-                          "Financial statement line items","Stock prices and volumes","GST and customs values"]:
-                    st.markdown(f"• {i}")
-            with cb:
-                st.error("❌ **Does NOT Follow**")
-                for i in ["Phone numbers (fixed format)","Employee IDs (sequential)","Ages (bounded 0-120)",
-                          "Psychologically anchored prices","Uniformly assigned numbers","Zip/Postal codes"]:
-                    st.markdown(f"• {i}")
-
-        with col2:
-            st.markdown("### 📊 The Benford Distribution")
-            df_ben = pd.DataFrame({"Digit": range(1, 10),
-                "Probability (%)": [round(BENFORD[d]*100, 2) for d in range(1,10)],
-                "1-in-N": [f"1 in {round(1/BENFORD[d])}" for d in range(1,10)]})
-            st.dataframe(df_ben.set_index("Digit"), use_container_width=True)
-            st.markdown(f"""<div class="formula-box" style="margin-top:16px;">
-              <div style="color:{MUTED}; font-size:11px;">KEY FACT</div>
-              <div style="color:{GOLD}; font-size:18px; font-weight:800; margin:8px 0;">
-                Digits 1–3 account for<br><span style="font-size:36px;">60.2%</span><br>of all leading digits!</div>
+        shdr("📘","The Three Mechanisms of Missingness")
+        c1,c2,c3 = st.columns(3)
+        for col,clr,icon,nm,tag,ex,fix in [
+            (c1,LIGHT_BLUE,"🎲","MCAR","Best Case — any fix works",
+             "NSE random packet-loss on 0.1% of trading days.",
+             "Any imputation valid. Listwise deletion acceptable."),
+            (c2,GOLD,"📊","MAR","Manageable — model-based imputation",
+             "Small-caps missing EPS estimates (related to market cap, not EPS itself).",
+             "MICE, KNN, or regression using observed predictors."),
+            (c3,RED,"🚨","MNAR","Most Dangerous — domain expertise required",
+             "Company revenue missing because revenues were catastrophically low.",
+             "No standard fix. Domain expertise + sensitivity analysis."),
+        ]:
+            col.markdown(f"""
+            <div class="mp-card" style="border-left:4px solid {clr};height:100%;">
+              <div style="text-align:center;font-size:1.6rem;margin-bottom:6px;">{icon}</div>
+              <div style="font-weight:900;color:{clr};font-size:1.05rem;
+                   font-family:'Playfair Display',serif;margin-bottom:4px;">{nm}</div>
+              <div style="font-size:0.75rem;color:{MUTED};text-transform:uppercase;
+                   letter-spacing:0.06em;margin-bottom:8px;">{tag}</div>
+              <div style="font-size:0.87rem;color:{TXT};margin-bottom:8px;">{ex}</div>
+              <div style="font-size:0.82rem;background:#060d1a;padding:8px;
+                   border-radius:6px;color:{LIGHT_BLUE};">✔ {fix}</div>
             </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>",unsafe_allow_html=True)
+        shdr("📋","Decision Framework")
+        st.dataframe(pd.DataFrame({
+            "% Missing":["<5%","5–15%",">15%","Any",">50%","Monotone tail"],
+            "Mechanism":["MCAR","MAR","MAR","MNAR","Any","Known event"],
+            "Variable":["Price/Return","Financial ratio","Any","Any","Any","Price"],
+            "Recommended Strategy":[
+                "Forward-fill or mean imputation","Regression / KNN imputation",
+                "Multiple Imputation (MICE)","Domain-adjusted; sensitivity analysis",
+                "Exclude; flag and document","Mark as delisted; exclude"],
+        }), use_container_width=True, hide_index=True)
+
+        st.markdown(f"""<div class="mp-card-red">
+        <b style="color:{RED};">Mean Imputation Warning:</b>
+        Var(X<sub>imputed</sub>) &lt; Var(X<sub>true</sub>) — artificially reduces variance.
+        VaR calculations <b>understate risk</b>. Correlation estimates biased toward zero.
+        <b>Never use for risk models or where distribution shape matters.</b>
+        </div>""", unsafe_allow_html=True)
 
     with tab2:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"""<div class="formula-box">
-              <div style="color:{MUTED}; font-size:12px; margin-bottom:8px;">BENFORD'S LAW — FIRST DIGIT</div>
-              <div style="color:{GOLD}; font-size:28px; font-weight:900; font-family:Georgia,serif;">
-                P(d) = log<sub>10</sub>(1 + 1/d)</div>
-              <div style="color:{TXT}; font-size:13px; margin-top:10px;">where d ∈ {{1,2,3,4,5,6,7,8,9}}</div>
-            </div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div class="mp-card-blue">
-              <b style="color:{LIGHT_BLUE};">Compound growth intuition:</b><br><br>
-              Start with ₹100 (digit: <b style="color:{GOLD};">1</b>)<br>
-              +10% each step ... stays at digit 1 for 8 steps!<br>
-              At ₹214 → first digit becomes <b style="color:{GOLD};">2</b><br><br>
-              <b>Moving 1→2 requires 100% increase. Moving 9→10 needs only 11%.</b>
-            </div>""", unsafe_allow_html=True)
-
-        with col2:
-            sel = st.slider("Select a leading digit:", 1, 9, 1)
-            prob = BENFORD[sel]
-            st.markdown(f"""<div style="background:{CARD_BG}; border:2px solid {GOLD};
-                border-radius:10px; padding:20px; text-align:center; margin:10px 0;">
-              <div style="color:{MUTED}; font-size:12px;">Formula</div>
-              <div style="color:{GOLD}; font-size:18px; font-family:Georgia,serif;">
-                P({sel}) = log₁₀(1+1/{sel}) = log₁₀({sel+1}/{sel})</div>
-              <div style="color:{TXT}; font-size:36px; font-weight:900; margin:12px 0;">{prob*100:.2f}%</div>
-              <div style="color:{LIGHT_BLUE}; font-size:13px;">Appears 1 in {round(1/prob)} numbers</div>
-            </div>""", unsafe_allow_html=True)
-            cum, running = [], 0
-            for d in range(1, 10):
-                running += BENFORD[d]*100
-                cum.append({"Digit": d, "Cumulative %": round(running, 2)})
-            st.dataframe(pd.DataFrame(cum).set_index("Digit"), use_container_width=True)
+        shdr("🔬","Interactive Missing Data Diagnosis")
+        cc,cm = st.columns([1,3])
+        with cc:
+            n  = st.slider("Trading Days",100,504,252,10)
+            bp = st.slider("Block Missing %",0,20,5)
+            rp = st.slider("Random Missing %",0,20,8)
+            mt = st.slider("Monotone Tail (days)",0,80,30)
+        df0 = nse_prices(n=n); df1 = df0.copy()
+        if bp>0: df1.iloc[50:50+max(2,int(n*bp/100)),0]=np.nan
+        if rp>0: df1.iloc[np.random.default_rng(7).choice(n,int(n*rp/100),replace=False),1]=np.nan
+        if mt>0: df1.iloc[-mt:,2]=np.nan
+        tot=df1.isnull().sum().sum(); pct=tot/df1.size*100
+        mrow([{"val":f"{pct:.1f}%","lbl":"Overall Missing"},
+              {"val":str(tot),"lbl":"Missing Cells"},
+              {"val":str(n),"lbl":"Trading Days"},
+              {"val":"5","lbl":"NSE Stocks"}])
+        with cm:
+            fig=go.Figure(go.Heatmap(z=df1.isnull().astype(int).values.T,
+                x=[str(d.date()) for d in df1.index],y=df1.columns.tolist(),
+                colorscale=[[0,"#0f1a2e"],[1,GOLD]],showscale=True,
+                colorbar=dict(title="Missing",tickvals=[0,1],ticktext=["Present","Missing"])))
+            fig.update_layout(**PL,title=dict(text="<b>Missing Data Heatmap (Gold=Missing)</b>",
+                font=dict(color=GOLD,size=13)),height=260,xaxis=dict(showticklabels=False))
+            st.plotly_chart(fig,use_container_width=True)
+        c1,c2=st.columns(2)
+        with c1:
+            mp=(df1.isnull().sum()/n*100).reset_index(); mp.columns=["S","P"]
+            fig2=go.Figure(go.Bar(x=mp.P,y=mp.S,orientation="h",
+                marker_color=[GREEN if v<5 else(GOLD if v<15 else RED) for v in mp.P],
+                text=[f"{v:.1f}%" for v in mp.P],textposition="outside",textfont=dict(color=TXT)))
+            fig2.add_vline(x=5,line_dash="dash",line_color=RED)
+            fig2.update_layout(**PL,height=280,title=dict(text="<b>Missing % by Stock</b>",font=dict(color=GOLD,size=13)))
+            st.plotly_chart(fig2,use_container_width=True)
+        with c2:
+            fig3=go.Figure(go.Scatter(x=df1.index,y=df1.isnull().sum(axis=1).cumsum(),
+                fill="tozeroy",line=dict(color=GOLD,width=2),fillcolor="rgba(255,215,0,0.08)"))
+            fig3.update_layout(**PL,height=280,title=dict(text="<b>Cumulative Missing Over Time</b>",font=dict(color=GOLD,size=13)))
+            st.plotly_chart(fig3,use_container_width=True)
 
     with tab3:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("#### Second-Digit Distribution")
-            sdp = {d: sum(np.log10(1 + 1/(10*k+d)) for k in range(1,10)) for d in range(10)}
-            st.dataframe(pd.DataFrame({"Digit": list(range(10)),
-                "Expected %": [round(sdp[d]*100,2) for d in range(10)]}).set_index("Digit"), use_container_width=True)
-        with c2:
-            st.markdown(f"""<div class="mp-card-red">
-              <b style="color:{RED};">Fraudsters Love Round Numbers!</b><br><br>
-              In natural data, each last digit (0–9) appears ~10%.
-              In fabricated data, digits 0 and 5 often appear 30–40%.<br><br>
-              <b style="color:{GOLD};">Round Number Score = Observed % of 0s and 5s ÷ 20%</b><br>
-              Score > 2.0 (>40%) is a significant red flag.
-            </div>""", unsafe_allow_html=True)
-        st.markdown(f"""<div class="mp-card-blue">
-          <b style="color:{LIGHT_BLUE};">The Summation Test:</b> Each two-digit group (10–99) should account
-          for ~<b style="color:{GOLD};">1/90 ≈ 1.11%</b> of total value. Any group with ratio >2× is flagged.
-        </div>""", unsafe_allow_html=True)
+        shdr("🛠️","Live Imputation — Method Selector")
+        df2=nse_prices(n=252); df3=inject_miss(df2)
+        c1,c2=st.columns(2)
+        with c1: stk=st.selectbox("Stock",df3.columns.tolist(),index=1)
+        with c2: meth=st.selectbox("Method",["Forward Fill (LOCF)","Backward Fill (NOCB)",
+                   "Linear Interpolation","Spline Interpolation",
+                   "Mean Imputation","Median Imputation","KNN Imputation"])
+        sr=df3[stk]; st2=df2[stk]
+        if   meth=="Forward Fill (LOCF)":    si=sr.ffill()
+        elif meth=="Backward Fill (NOCB)":   si=sr.bfill()
+        elif meth=="Linear Interpolation":   si=sr.interpolate("linear")
+        elif meth=="Spline Interpolation":   si=sr.interpolate("spline",order=3)
+        elif meth=="Mean Imputation":        si=sr.fillna(sr.mean())
+        elif meth=="Median Imputation":      si=sr.fillna(sr.median())
+        else:
+            sc=StandardScaler(); X=sc.fit_transform(df3.values)
+            Xp=sc.inverse_transform(KNNImputer(n_neighbors=7).fit_transform(X))
+            si=pd.Series(Xp[:,df3.columns.get_loc(stk)],index=df3.index)
+        fig=go.Figure()
+        fig.add_trace(go.Scatter(x=st2.index,y=st2,name="True",line=dict(color=GREEN,width=1.5,dash="dot"),opacity=0.6))
+        fig.add_trace(go.Scatter(x=sr.index,y=sr,name="Observed",line=dict(color=LIGHT_BLUE,width=2)))
+        fig.add_trace(go.Scatter(x=si.index,y=si,name=f"Imputed ({meth})",line=dict(color=GOLD,width=2)))
+        fig.update_layout(**PL,height=400,title=dict(text=f"<b>{stk} — {meth}</b>",font=dict(color=GOLD,size=13)),
+            legend=dict(orientation="h"))
+        st.plotly_chart(fig,use_container_width=True)
+        if "Fill" in meth:
+            st.markdown(f'<div class="verdict-warn">⚠️ {meth} creates artificial zero-return days — understates volatility. Never use for risk models.</div>',unsafe_allow_html=True)
+        elif meth=="Mean Imputation":
+            st.markdown(f'<div class="verdict-warn">⚠️ Mean imputation reduces variance — biases VaR and correlation estimates.</div>',unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="verdict-ok">✅ {meth} better preserves temporal structure.</div>',unsafe_allow_html=True)
 
     with tab4:
-        st.markdown(f"""<div class="mp-card">
-          <b style="color:{GOLD};">Why statistical tests?</b> Observed frequencies never perfectly match
-          Benford's Law. Tests tell us: is this deviation suspicious or just random chance?
-        </div>""", unsafe_allow_html=True)
-        t1,t2,t3,t4 = st.tabs(["Chi-Squared","MAD Test","Z-Score","KS Test"])
-        with t1:
-            st.markdown(f"""<div class="formula-box">
-              <div style="color:{MUTED}; font-size:11px;">CHI-SQUARED GOODNESS-OF-FIT</div>
-              <div style="color:{GOLD}; font-size:22px; font-family:Georgia,serif;">χ² = Σ (Oᵈ − Eᵈ)² / Eᵈ</div>
-              <div style="color:{TXT}; font-size:12px; margin-top:8px;">Degrees of freedom = 8</div>
-            </div>""", unsafe_allow_html=True)
-            st.dataframe(pd.DataFrame({"Significance Level":["10%","5%","1%","0.1%"],
-                "Critical Value (df=8)":[13.36,15.51,20.09,26.12],
-                "Action":["Review","Investigate","Urgent","Immediate Alert"]}),
-                use_container_width=True, hide_index=True)
-            st.warning("⚠️ With n > 5,000, tiny deviations become significant. Always combine with MAD.")
-        with t2:
-            st.markdown(f"""<div class="formula-box">
-              <div style="color:{MUTED}; font-size:11px;">MEAN ABSOLUTE DEVIATION</div>
-              <div style="color:{GOLD}; font-size:22px; font-family:Georgia,serif;">MAD = (1/9) × Σ |Pᵈobs − Pᵈbenford|</div>
-            </div>""", unsafe_allow_html=True)
-            st.dataframe(pd.DataFrame({"MAD Value":["0.000–0.006","0.006–0.012","0.012–0.015",">0.015"],
-                "Interpretation":["Close conformity","Acceptable","Marginal","Non-conformity"],
-                "Action":["No issue ✅","Monitor 👀","Review ⚠️","INVESTIGATE 🚨"]}),
-                use_container_width=True, hide_index=True)
-            st.success("✅ MAD is not inflated by large sample sizes — the preferred metric (Nigrini, 2012).")
-        with t3:
-            st.markdown(f"""<div class="formula-box">
-              <div style="color:{MUTED}; font-size:11px;">Z-SCORE PER DIGIT</div>
-              <div style="color:{GOLD}; font-size:18px; font-family:Georgia,serif;">
-                Zᵈ = (|Pᵈobs − Pᵈbenford| − 1/(2n)) / √(Pᵈbenford(1−Pᵈbenford)/n)</div>
-              <div style="color:{TXT}; font-size:11px; margin-top:6px;">Flag: |Z| > 1.96 (5%) or |Z| > 2.576 (1%)</div>
-            </div>""", unsafe_allow_html=True)
-            st.info("💡 Identifies WHICH specific digit is anomalous.")
-        with t4:
-            st.markdown(f"""<div class="formula-box">
-              <div style="color:{MUTED}; font-size:11px;">KOLMOGOROV-SMIRNOV TEST</div>
-              <div style="color:{GOLD}; font-size:22px; font-family:Georgia,serif;">D = max |Fobs(d) − FBenford(d)|</div>
-            </div>""", unsafe_allow_html=True)
-            st.info("💡 Best for small samples (< 100 records).")
-
-    with tab5:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### ⚠️ Critical Limitations")
-            for title, desc in [
-                ("Not all data qualifies","Phone numbers, ages, anchored prices do not follow Benford."),
-                ("Sample size sensitivity","Chi-squared oversensitive at n>5,000. Prefer MAD."),
-                ("Benford ≠ innocence","Sophisticated fraudsters can fabricate conforming numbers."),
-                ("Industry deviations","FMCG prices at ₹X9.99; real estate near stamp duty thresholds."),
-                ("Minimum sample","At least 50–100 records; ideally 1,000+."),
-            ]:
-                st.markdown(f'<div class="mp-card-red"><b style="color:{RED};">{title}</b><br>{desc}</div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown("### ⚖️ Ethical Principles")
-            for title, desc in [
-                ("Presumption of innocence","A flag is a signal for investigation, NOT evidence of fraud."),
-                ("Algorithmic fairness","Audit ML models for demographic bias."),
-                ("Data privacy","Comply with DPDP Act 2023 and be proportionate to risk."),
-                ("Transparency","Individuals have the right to understand adverse decisions."),
-                ("Human-in-the-loop","Machines flag; humans decide. High-stakes actions need human review."),
-                ("Model governance","Re-validate periodically. Fraudsters adapt."),
-            ]:
-                st.markdown(f'<div class="mp-card-green"><b style="color:{GREEN};">{title}</b><br>{desc}</div>', unsafe_allow_html=True)
+        shdr("📐","Return Distribution — True vs Imputed")
+        df4=nse_prices(n=252); df5=inject_miss(df4)
+        s4=st.selectbox("Stock",df5.columns,key="cst")
+        s5=df5[s4]
+        methods={
+            "True":df4[s4].pct_change().dropna(),
+            "Forward Fill":s5.ffill().pct_change().dropna(),
+            "Linear Interp":s5.interpolate("linear").pct_change().dropna(),
+            "Mean Imputation":s5.fillna(s5.mean()).pct_change().dropna(),
+        }
+        fig=make_subplots(rows=1,cols=4,subplot_titles=list(methods.keys()),shared_yaxes=True)
+        for i,(nm,r) in enumerate(methods.items(),1):
+            fig.add_trace(go.Histogram(x=r,name=nm,
+                marker_color=[GREEN,GOLD,LIGHT_BLUE,RED][i-1],opacity=0.75,nbinsx=40,showlegend=False),row=1,col=i)
+        fig.update_layout(**PL,height=360,title=dict(text="<b>Return Distribution: True vs Imputed</b>",font=dict(color=GOLD,size=13)))
+        st.plotly_chart(fig,use_container_width=True)
+        st.dataframe(pd.DataFrame({nm:{
+            "Mean (%)":round(r.mean()*100,4),"Std Dev (%)":round(r.std()*100,4),
+            "Skewness":round(r.skew(),3),"Kurtosis":round(r.kurt(),3),"Zero Returns":int((r==0).sum()),
+        } for nm,r in methods.items()}).T,use_container_width=True)
+        st.markdown(f"""<div class="mp-card-red">
+        Mean imputation produces the <b>lowest variance</b> — directly understating VaR.
+        Forward Fill spikes at zero returns. Linear Interpolation best approximates true distribution.
+        </div>""",unsafe_allow_html=True)
+    footer()
 
 
 # ═════════════════════════════════════════════════════════════
-# PAGE: INTERACTIVE ANALYZER
+# PAGE: OUTLIER DETECTION
 # ═════════════════════════════════════════════════════════════
-elif page == "📊 Interactive Analyzer":
-    st.markdown("## 📊 Interactive Benford Analyzer")
-    st.markdown("Upload your own data or use the synthetic generator to explore Benford's Law in action.")
+elif page == "📊 Outlier Detection":
+    hero("Outlier Detection in Financial Data",
+         "Z-Score · Modified Z-Score (MAD) · IQR · Isolation Forest · Winsorisation",
+         ["Error Outliers","Genuine Extreme Events","Structural Breaks"])
 
-    tab_upload, tab_gen = st.tabs(["📁 Upload / Paste Data","🎲 Synthetic Data Generator"])
-
-    with tab_upload:
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            method = st.radio("Input method:", ["Paste numbers","Upload CSV"])
-            if method == "Paste numbers":
-                raw = st.text_area("Paste numbers (one per line or comma-separated):",
-                    "145230\n23400\n8750\n312000\n67800\n190000\n445000\n28900\n"
-                    "73500\n156000\n92000\n34500\n228000\n87600\n143000", height=200)
-                if st.button("Analyse", type="primary"):
-                    nums = []
-                    for token in raw.replace(",","\n").split():
-                        try: nums.append(float(token))
-                        except: pass
-                    st.session_state["analyzer_data"] = nums
-            else:
-                uploaded = st.file_uploader("Upload CSV file:", type=["csv"])
-                if uploaded:
-                    df_up = pd.read_csv(uploaded)
-                    nc = df_up.select_dtypes(include=np.number).columns.tolist()
-                    cs = st.selectbox("Select numeric column:", nc)
-                    if st.button("Analyse Column", type="primary"):
-                        st.session_state["analyzer_data"] = df_up[cs].dropna().tolist()
-
-        with col2:
-            if "analyzer_data" in st.session_state:
-                data = st.session_state["analyzer_data"]
-                result = benford_analysis(data)
-                if result:
-                    show_stats_panel(result)
-                    st.plotly_chart(chart_first_digit(result, "Your Data — Benford Analysis"), use_container_width=True)
-                    show_digit_table(result)
-                    c1, c2 = st.columns(2)
-                    with c1: st.plotly_chart(chart_deviation(result), use_container_width=True)
-                    with c2:
-                        lc, lp, rp = last_digit_analysis(data)
-                        st.plotly_chart(chart_last_digit(lp), use_container_width=True)
-                        if rp > 30: st.error(f"🚨 Round Number Score: {rp:.1f}% of last digits are 0 or 5 (expected: 20%). Suspicious!")
-                        else: st.success(f"✅ Round Number Score: {rp:.1f}% (normal range)")
-                    st.plotly_chart(chart_log_histogram(data), use_container_width=True)
-
-    with tab_gen:
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            n_clean = st.slider("Clean transactions:", 500, 5000, 2000, 100)
-            n_fraud = st.slider("Fraudulent transactions:", 0, 500, 150, 10)
-            ft = st.selectbox("Fraud pattern:", ["Structuring (just-below threshold)",
-                "Round numbers (₹10k, ₹25k, ₹50k)","Digit-5 inflation","No fraud (clean dataset)"])
-            if st.button("Generate & Analyse", type="primary"):
-                np.random.seed(42)
-                clean = np.concatenate([10**np.random.uniform(2,6,int(n_clean*0.7)),
-                                        np.random.exponential(25000, int(n_clean*0.3))])
-                if ft == "No fraud (clean dataset)": synth = clean
-                elif "Structuring" in ft: synth = np.concatenate([clean, np.random.uniform(950000,999000,n_fraud)])
-                elif "Round" in ft: synth = np.concatenate([clean, np.random.choice([10000,25000,50000,100000],n_fraud)])
-                else: synth = np.concatenate([clean, np.random.uniform(50000,59999,n_fraud)])
-                st.session_state["synth_data"] = synth; st.session_state["synth_type"] = ft
-
-        with col2:
-            if "synth_data" in st.session_state:
-                result = benford_analysis(st.session_state["synth_data"])
-                if result:
-                    st.caption(f"📊 Analysis: {st.session_state.get('synth_type','')}")
-                    show_stats_panel(result)
-                    st.plotly_chart(chart_first_digit(result, f"Synthetic: {st.session_state.get('synth_type','')}"), use_container_width=True)
-                    show_digit_table(result)
-
-
-# ═════════════════════════════════════════════════════════════
-# CASE 1: GST INVOICE FRAUD
-# ═════════════════════════════════════════════════════════════
-elif page == "🏦 Case 1: GST Invoice Fraud":
-    st.markdown("## 🏦 Case Study 1: GST Invoice Fraud Detection")
-    st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px; text-align:left;">
-      <span class="badge">Case Study 1</span>
-      <span class="badge-red badge">FRAUD DETECTED</span>
-      <h3 style="color:{GOLD}; margin:10px 0 6px;">Fictitious Invoice Fraud in GST Returns</h3>
-      <p style="color:{TXT}; margin:0;"><b>Scenario:</b> A textile trader in Mumbai files GST returns claiming ₹5 crore in
-        Input Tax Credit (ITC) based on 200 purchase invoices from three suppliers.
-        The GSTN analytics team runs a Benford's Law test as part of routine screening.</p>
-    </div>""", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Claimed ITC", "₹5,00,00,000", delta="Fraudulent")
-    col2.metric("Invoices Scrutinised", "200")
-    col3.metric("Suppliers Involved", "3 (shell entities)")
-
-    # Use pre-built dataset
-    data = DF_CASE1["Invoice_Amount_INR"].values
-    st.session_state["case1_data"] = data
-    result = benford_analysis(data)
-
-    tab1, tab2, tab3, tab4, tab_dl = st.tabs([
-        "📋 Background", "📊 Benford Analysis",
-        "🔍 Investigation Findings", "📚 Learning Points", "📥 Download Raw Data"])
+    tab1,tab2,tab3,tab4 = st.tabs([
+        "📘 Three Types","🔬 Interactive Detection",
+        "⚖️ Method Comparison","✂️ Winsorisation Lab"])
 
     with tab1:
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            st.markdown(f"""<div class="mp-card">
-              <b style="color:{GOLD};">Business Context</b><br><br>
-              M/s Radha Textile Traders filed GSTR-3B for FY2023-24 claiming substantial ITC.
-              Risk-scoring flagged: ITC-to-turnover ratio 340% above industry average,
-              all three suppliers registered within 6 months, invoice amounts unusually concentrated.
-            </div>
-            <div class="mp-card-red">
-              <b style="color:{RED};">Known Fraud Behaviour</b><br><br>
-              Fabricators tend to: use round amounts (₹25k, ₹50k, ₹1L),
-              cluster near reporting thresholds, underuse digit 1, overuse digits 5–9.
-            </div>""", unsafe_allow_html=True)
-        with col2:
-            st.markdown("**Sample Invoice Amounts (₹):**")
-            st.dataframe(DF_CASE1[["Invoice_Number","Invoice_Date","Supplier","Invoice_Amount_INR"]].head(15),
-                         use_container_width=True, hide_index=True)
+        c1,c2,c3=st.columns(3)
+        for col,clr,icon,title,exs,action in [
+            (c1,RED,"🐛","Error Outliers",
+             ["Negative stock price","PE=50,000","Volume=0 on active day","Return=−99% large-cap"],
+             f"<b style='color:{RED}'>CORRECT or REMOVE. Not real events.</b>"),
+            (c2,GOLD,"⚡","Genuine Extreme Events",
+             ["NIFTY −38% (COVID Mar 2020)","NIFTY −4% (Demonetisation)","RBI rate shock days","Short squeezes"],
+             f"<b style='color:{GOLD}'>PRESERVE for risk modelling & stress-testing.</b>"),
+            (c3,LIGHT_BLUE,"🔀","Structural Breaks",
+             ["Merger / demerger","Basel III→IV regulatory change","Index reconstitution","Currency regime change"],
+             f"<b style='color:{LIGHT_BLUE}'>REGIME-SPLIT or add dummy variable.</b>"),
+        ]:
+            col.markdown(f"""
+            <div class="mp-card" style="border-left:4px solid {clr};height:100%;">
+              <div style="text-align:center;font-size:1.5rem;">{icon}</div>
+              <div style="font-weight:900;color:{clr};font-family:'Playfair Display',serif;
+                   font-size:1rem;margin:6px 0;">{title}</div>
+              <ul style="font-size:0.83rem;color:{TXT};padding-left:18px;margin:6px 0;">
+                {"".join(f'<li style="margin-bottom:3px;">{e}</li>' for e in exs)}
+              </ul>
+              <div style="font-size:0.83rem;margin-top:8px;padding:8px;
+                   background:#060d1a;border-radius:6px;">{action}</div>
+            </div>""",unsafe_allow_html=True)
+        st.markdown("<br>",unsafe_allow_html=True)
+        shdr("📐","Statistical Methods Overview")
+        st.dataframe(pd.DataFrame({
+            "Method":["Z-Score","Modified Z-Score (MAD)","IQR (Tukey)","Isolation Forest"],
+            "Formula":["Zᵢ=(Xᵢ−X̄)/σ","Mᵢ=0.6745·|Xᵢ−X̃|/MAD","Fences=Q1±k·IQR","s(x)=2^(−E[h(x)]/c(n))"],
+            "Flag Rule":["|Z|>3","|M|>3.5","k=1.5 or k=3","Score≈1→anomalous"],
+            "Fat Tails":["❌","✅","✅","✅"],
+            "Best For":["Quick scan","Return series; ratios","Winsorisation bounds","Market surveillance"],
+        }),use_container_width=True,hide_index=True)
 
     with tab2:
-        if result:
-            show_stats_panel(result)
-            col1, col2 = st.columns(2)
-            with col1: st.plotly_chart(chart_first_digit(result, "GST Invoice Benford Analysis"), use_container_width=True)
-            with col2: st.plotly_chart(chart_deviation(result), use_container_width=True)
-            show_digit_table(result)
-            lc, lp, rp = last_digit_analysis(data)
-            col1, col2 = st.columns(2)
-            with col1: st.plotly_chart(chart_last_digit(lp), use_container_width=True)
-            with col2:
-                st.markdown(f"""<div class="mp-card-red" style="margin-top:20px;">
-                  <b style="color:{RED}; font-size:16px;">🚨 Round Number Alert</b><br><br>
-                  <b style="color:{GOLD}; font-size:24px;">{rp:.1f}%</b> of invoice amounts end in 0 or 5<br>
-                  <span style="color:{MUTED};">(Expected: ~20% in natural data)</span><br><br>
-                  Round Number Score: <b style="color:{RED};">{rp/20:.1f}×</b> the expected value
-                </div>""", unsafe_allow_html=True)
+        shdr("🔬","Multi-Method Outlier Detection")
+        cc,cm=st.columns([1,3])
+        with cc:
+            n2=st.slider("Observations",100,1000,500,50,key="on")
+            ns=st.slider("Injected Shocks",0,20,10)
+            zt=st.slider("Z-Score Threshold",1.5,5.0,3.0,0.1)
+            mt=st.slider("MAD Threshold",1.5,6.0,3.5,0.1)
+            ct=st.slider("IF Contamination",0.01,0.10,0.02,0.005)
+        rng=np.random.default_rng(42)
+        ret=rng.normal(0.05/252,0.18/np.sqrt(252),n2)
+        if ns>0: ret[rng.choice(n2,ns,replace=False)]=rng.choice([-0.08,-0.06,-0.05,0.06,0.07,0.09],ns)
+        dt2=pd.bdate_range("2022-01-03",periods=n2); returns=pd.Series(ret,index=dt2)
+        zs=np.abs(stats.zscore(returns)); oz=returns[zs>zt]
+        med=returns.median(); mad=np.median(np.abs(returns-med))
+        mz=0.6745*np.abs(returns-med)/(mad+1e-10); om=returns[mz>mt]
+        Q1,Q3=returns.quantile(0.25),returns.quantile(0.75); IQR=Q3-Q1
+        oi=returns[(returns<Q1-3*IQR)|(returns>Q3+3*IQR)]
+        iso=IsolationForest(contamination=ct,random_state=42)
+        ip=iso.fit_predict(returns.values.reshape(-1,1)); ois=returns[ip==-1]
+        ai=set(oz.index)|set(om.index)|set(oi.index)|set(ois.index)
+        con=[ix for ix in ai if sum([ix in set(o.index) for o in [oz,om,oi,ois]])>=2]
+        mrow([{"val":str(len(oz)),"lbl":"Z-Score"},{"val":str(len(om)),"lbl":"MAD"},
+              {"val":str(len(oi)),"lbl":"IQR"},{"val":str(len(ois)),"lbl":"IF"},
+              {"val":str(len(con)),"lbl":"Consensus (≥2)"}])
+        with cm:
+            fig=go.Figure()
+            fig.add_trace(go.Scatter(x=returns.index,y=returns*100,mode="lines",
+                line=dict(color=LIGHT_BLUE,width=1),name="Daily Returns",opacity=0.7))
+            fig.add_trace(go.Scatter(x=oz.index,y=oz*100,mode="markers",
+                marker=dict(color=GOLD,size=8,symbol="circle-open",line=dict(width=2)),name=f"Z-Score"))
+            fig.add_trace(go.Scatter(x=ois.index,y=ois*100,mode="markers",
+                marker=dict(color=RED,size=9,symbol="x",line=dict(width=2)),name="Isolation Forest"))
+            if con:
+                cr=returns[returns.index.isin(con)]
+                fig.add_trace(go.Scatter(x=cr.index,y=cr*100,mode="markers",
+                    marker=dict(color="white",size=14,symbol="star",line=dict(color=GOLD,width=2)),
+                    name="Consensus (≥2)"))
+            fig.update_layout(**PL,height=400,
+                title=dict(text="<b>Multi-Method Outlier Detection — NSE Returns</b>",font=dict(color=GOLD,size=13)),
+                legend=dict(orientation="h",y=1.02))
+            st.plotly_chart(fig,use_container_width=True)
+        if con:
+            st.dataframe(pd.DataFrame({
+                "Date":[ix.date() for ix in sorted(con)],
+                "Return (%)":[round(returns[ix]*100,2) for ix in sorted(con)],
+                "Methods":[" | ".join([n for n,s in [("Z",oz),("MAD",om),("IQR",oi),("IF",ois)]
+                           if ix in set(s.index)]) for ix in sorted(con)],
+            }),use_container_width=True,hide_index=True)
 
     with tab3:
-        col1, col2 = st.columns(2)
-        with col1:
-            if result:
-                st.markdown(f"""<div class="mp-card-red">
-                  <b style="color:{RED};">Benford Signals That Triggered Investigation</b>
-                  <ul style="margin:10px 0; padding-left:20px; color:{TXT};">
-                    <li>Digit-1: 10% (expected 30.1%) — massive under-representation</li>
-                    <li>Digit-5: ~40% (expected 7.9%) — massive over-representation</li>
-                    <li>Digit-9: ~30% (expected 4.6%) — extreme structuring signal</li>
-                    <li>MAD = {result['mad']:.4f} — far above 0.015 threshold</li>
-                    <li>χ² = {result['chi2']:.1f} — overwhelmingly rejects Benford</li>
+        shdr("⚖️","Method Comparison & Sensitivity Analysis")
+        st.dataframe(pd.DataFrame({
+            "Method":["Z-Score","Modified Z-Score (MAD)","IQR Method","Isolation Forest","DBSCAN"],
+            "Distribution":["Normal","None (robust)","None","None","None"],
+            "Fat Tails":["❌","✅","✅","✅","✅"],
+            "Multivariate":["❌","❌","❌","✅","✅"],
+            "Python":["scipy.stats.zscore","Custom MAD","Series.quantile()","sklearn IsolationForest","sklearn DBSCAN"],
+        }),use_container_width=True,hide_index=True)
+        st.markdown(f"""<div class="mp-card-blue">
+        <b style="color:{LIGHT_BLUE};">Sensitivity Analysis — Gold Standard</b><br><br>
+        1. Run with outliers (full sample) &nbsp; 2. Run without (winsorised) &nbsp;
+        3. Run with robust methods<br>
+        If results are <b>materially different</b>: investigate; report both; document assumptions.<br>
+        If results are <b>similar</b>: outliers do not materially affect conclusions.<br><br>
+        <b>Regulatory note:</b> SEBI ICDR and RBI model risk guidelines require documentation of
+        outlier treatment methodology.
+        </div>""",unsafe_allow_html=True)
+
+    with tab4:
+        shdr("✂️","Winsorisation — Live Demo")
+        c1,c2=st.columns(2)
+        with c1:
+            lo_p=st.slider("Lower Percentile (%)",0.5,5.0,1.0,0.5)
+            hi_p=st.slider("Upper Percentile (%)",95.0,99.5,99.0,0.5)
+        rng2=np.random.default_rng(42)
+        pe=np.concatenate([rng2.lognormal(3.3,0.6,490),np.array([500,800,-50,-30,0.5,1200,2000,5000,0.8,1000])])
+        spe=pd.Series(pe); lo=spe.quantile(lo_p/100); hi=spe.quantile(hi_p/100)
+        sw=spe.clip(lo,hi)
+        with c2:
+            mrow([{"val":str((spe<lo).sum()),"lbl":f"Capped at lower ({lo:.0f})"},
+                  {"val":str((spe>hi).sum()),"lbl":f"Capped at upper ({hi:.0f})"},
+                  {"val":f"{spe.std():.1f}","lbl":"Std Dev Before"},
+                  {"val":f"{sw.std():.1f}","lbl":"Std Dev After"}])
+        fig=make_subplots(rows=1,cols=2,subplot_titles=["Original PE","Winsorised PE"])
+        fig.add_trace(go.Histogram(x=spe.clip(-100,1000),nbinsx=60,marker_color=LIGHT_BLUE,opacity=0.75,name="Orig"),row=1,col=1)
+        fig.add_trace(go.Histogram(x=sw,nbinsx=60,marker_color=GOLD,opacity=0.75,name="Wins"),row=1,col=2)
+        fig.add_vline(x=lo,line_dash="dash",line_color=RED,row=1,col=2)
+        fig.add_vline(x=hi,line_dash="dash",line_color=RED,row=1,col=2)
+        fig.update_layout(**PL,height=340,showlegend=False)
+        st.plotly_chart(fig,use_container_width=True)
+        st.markdown(f"""<div class="mp-card">
+        <b style="color:{GOLD};">Formula:</b>
+        X<sup>wins</sup>ᵢ = Q<sub>α</sub> if X<sub>i</sub>&lt;Q<sub>α</sub> |
+        Xᵢ if Q<sub>α</sub>≤Xᵢ≤Q<sub>1−α</sub> |
+        Q<sub>1−α</sub> if Xᵢ&gt;Q<sub>1−α</sub><br><br>
+        Standard in academic finance: winsorise at <b>1% and 99%</b>.
+        For time-series: use <b>rolling percentiles</b> to avoid look-ahead bias.
+        </div>""",unsafe_allow_html=True)
+    footer()
+
+
+# ═════════════════════════════════════════════════════════════
+# PAGE: TIME SERIES
+# ═════════════════════════════════════════════════════════════
+elif page == "📅 Time Series Formatting":
+    hero("Time Series Formatting for Financial Data",
+         "DatetimeIndex · Business Calendars · OHLCV Resampling · Yield Curve Interpolation",
+         ["NSE Calendar","OHLCV","G-Sec Yield Curve","Timezone"])
+
+    tab1,tab2,tab3,tab4 = st.tabs([
+        "📘 Five Dimensions","📅 DatetimeIndex Builder",
+        "📈 OHLCV Resampler","🎯 Yield Curve"])
+
+    with tab1:
+        shdr("📘","Five Dimensions of Financial Time Series Formatting")
+        for num,title,clr,body,ex in [
+            ("1️⃣","Index Type",LIGHT_BLUE,
+             "DatetimeIndex MUST be used — string-based indices cause silent errors in resampling and rolling calculations.",
+             "df.index = pd.to_datetime(df.index)"),
+            ("2️⃣","Timezone Handling",GOLD,
+             "NSE trades IST (UTC+5:30); NYSE trades ET. Cross-market analysis requires tz-aware timestamps.",
+             "nse_ts.tz_localize('Asia/Kolkata').tz_convert('America/New_York')"),
+            ("3️⃣","Business Calendar",LIGHT_BLUE,
+             "pd.bdate_range() misses Indian holidays. Use CustomBusinessDay with NSEHolidayCalendar (~244 days/year).",
+             "CustomBusinessDay(calendar=NSEHolidayCalendar())"),
+            ("4️⃣","Frequency",GOLD,
+             "OHLCV: Open→first, High→max, Low→min, Close→last, Volume→sum. Returns must be COMPOUNDED not summed.",
+             "df.resample('ME').agg({'Open':'first','High':'max','Volume':'sum',...})"),
+            ("5️⃣","Corporate Actions",LIGHT_BLUE,
+             "TCS 1:1 bonus creates apparent −50% return on ex-date. Always use backward-adjusted close prices.",
+             "yfinance: auto_adjust=True  |  NSE official adjusted data"),
+        ]:
+            st.markdown(f"""
+            <div class="mp-card" style="margin-bottom:10px;">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="font-size:1.5rem;flex-shrink:0;">{num}</div>
+                <div style="flex:1;">
+                  <div style="font-weight:700;color:{clr};font-size:0.97rem;margin-bottom:3px;">{title}</div>
+                  <div style="font-size:0.86rem;color:{TXT};margin-bottom:6px;">{body}</div>
+                  <code style="font-size:0.78rem;">{ex}</code>
+                </div>
+              </div>
+            </div>""",unsafe_allow_html=True)
+
+        shdr("📋","Resampling Aggregation Rules")
+        st.dataframe(pd.DataFrame({
+            "Data Type":["Open","High","Low","Close","Volume","Returns","Ratios","Macro"],
+            "Rule":[".first()",".max()",".min()",".last()",".sum()","∏(1+rᵢ)−1",".last()",".last()/.sum()"],
+            "Rationale":["Opening of period","Highest reached","Lowest reached","Closing of period",
+                         "Total traded","Compound not sum","Period-end valuation","Context-dependent"],
+        }),use_container_width=True,hide_index=True)
+        st.markdown(f'<div class="mp-card-red"><b style="color:{RED};">Never sum returns!</b> Correct: ∏(1+rᵢ)−1</div>',unsafe_allow_html=True)
+
+    with tab2:
+        shdr("📅","Financial DatetimeIndex Builder")
+        c1,c2=st.columns(2)
+        with c1:
+            start=st.date_input("Start",pd.Timestamp("2024-01-01"))
+            end  =st.date_input("End",  pd.Timestamp("2024-12-31"))
+        with c2:
+            cal=st.selectbox("Calendar",["Mon–Fri (Standard)","NSE Custom Holiday Calendar"])
+            tz =st.selectbox("Timezone",["Asia/Kolkata (IST)","America/New_York (ET)","UTC","Europe/London"])
+        nse_h=["2024-01-26","2024-03-25","2024-04-14","2024-04-17",
+               "2024-05-01","2024-06-17","2024-08-15","2024-10-02",
+               "2024-11-01","2024-11-15","2024-12-25"]
+        if cal=="Mon–Fri (Standard)":
+            idx=pd.bdate_range(str(start),str(end))
+        else:
+            from pandas.tseries.holiday import AbstractHolidayCalendar,Holiday
+            from pandas.tseries.offsets import CustomBusinessDay
+            class NSECal(AbstractHolidayCalendar):
+                rules=[Holiday("H"+str(i),year=pd.Timestamp(d).year,
+                    month=pd.Timestamp(d).month,day=pd.Timestamp(d).day) for i,d in enumerate(nse_h)]
+            idx=pd.bdate_range(str(start),str(end),freq=CustomBusinessDay(calendar=NSECal()))
+        st.success(f"✅ **{len(idx)} trading days** from {start} to {end} using {cal}")
+        if "NSE" in cal:
+            st.info(f"📅 {len(pd.bdate_range(str(start),str(end)))-len(idx)} NSE holidays removed")
+        tz_m={"Asia/Kolkata (IST)":"Asia/Kolkata","America/New_York (ET)":"America/New_York",
+              "UTC":"UTC","Europe/London":"Europe/London"}
+        to=pd.Timestamp("2024-01-15 09:15:00",tz="Asia/Kolkata").tz_convert(tz_m[tz])
+        tc=pd.Timestamp("2024-01-15 15:30:00",tz="Asia/Kolkata").tz_convert(tz_m[tz])
+        c1,c2=st.columns(2)
+        c1.markdown(f"""<div class="formula-box"><div style="color:{MUTED};font-size:11px;">NSE Market Hours (IST)</div>
+        <div style="color:{GOLD};font-size:22px;font-weight:800;">09:15 — 15:30</div>
+        <div style="color:{LIGHT_BLUE};font-size:12px;">Asia/Kolkata (UTC+5:30)</div></div>""",unsafe_allow_html=True)
+        c2.markdown(f"""<div class="formula-box"><div style="color:{MUTED};font-size:11px;">{tz}</div>
+        <div style="color:{GOLD};font-size:22px;font-weight:800;">{to.strftime('%H:%M')} — {tc.strftime('%H:%M')}</div>
+        <div style="color:{LIGHT_BLUE};font-size:12px;">{tz}</div></div>""",unsafe_allow_html=True)
+
+    with tab3:
+        shdr("📈","OHLCV Resampler — Interactive")
+        tf=st.selectbox("Resample To",["Weekly (W-FRI)","Monthly (ME)","Quarterly (QE)"])
+        nd=st.slider("Trading Days",50,504,252,10,key="nd3")
+        rng3=np.random.default_rng(42); dt3=pd.bdate_range("2024-01-02",periods=nd)
+        cl3=21000+np.cumsum(rng3.normal(10,150,nd))
+        df3=pd.DataFrame({"Open":cl3*(1+rng3.normal(0,0.005,nd)),"High":cl3*(1+np.abs(rng3.normal(0,0.008,nd))),
+            "Low":cl3*(1-np.abs(rng3.normal(0,0.008,nd))),"Close":cl3,"Volume":rng3.integers(300_000,2_000_000,nd)},index=dt3)
+        fc={"Weekly (W-FRI)":"W-FRI","Monthly (ME)":"ME","Quarterly (QE)":"QE"}[tf]
+        rs=df3.resample(fc).agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
+        dr=df3.Close.pct_change().dropna()
+        rs["Return(%)"]=((dr.resample(fc).apply(lambda s:(1+s).prod()-1))*100).round(2)
+        fig=go.Figure(go.Candlestick(x=rs.index,open=rs.Open,high=rs.High,low=rs.Low,close=rs.Close,
+            increasing_line_color=GREEN,decreasing_line_color=RED))
+        fig.update_layout(**PL,height=400,title=dict(text=f"<b>NIFTY 50 — {tf} OHLCV</b>",font=dict(color=GOLD,size=13)),
+            xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig,use_container_width=True)
+        c1,c2=st.columns(2)
+        with c1: st.dataframe(rs[["Open","High","Low","Close","Volume"]].head(8).round(1),use_container_width=True)
+        with c2:
+            fig2=go.Figure(go.Bar(x=rs.index,y=rs["Return(%)"],
+                marker_color=[GREEN if r>=0 else RED for r in rs["Return(%)"]]))
+            fig2.update_layout(**PL,height=280,title=dict(text="<b>Compounded Returns (%)</b>",font=dict(color=GOLD,size=13)))
+            st.plotly_chart(fig2,use_container_width=True)
+        st.markdown(f'<div class="verdict-ok">✅ Returns compounded correctly: ∏(1+rᵢ) − 1. Summing would overstate performance.</div>',unsafe_allow_html=True)
+
+    with tab4:
+        shdr("🎯","G-Sec Yield Curve — Cubic Spline Interpolation")
+        c1,c2=st.columns([1,2])
+        with c1:
+            rows="".join(f"<tr><td style='color:{TXT};'>{m}Y</td><td style='color:{GREEN};'>{y:.2f}%</td></tr>"
+                         for m,y in zip(GSEC_M,GSEC_Y))
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Observed G-Sec Maturities</b><br><br>
+            <table style="width:100%;font-size:0.83rem;">
+            <tr><th style="color:{GOLD};text-align:left;">Tenor</th>
+                <th style="color:{GOLD};text-align:left;">Yield</th></tr>{rows}</table></div>""",unsafe_allow_html=True)
+        with c2:
+            cs=CubicSpline(GSEC_M,GSEC_Y); dn=np.linspace(0.25,30,300)
+            mt=st.multiselect("Interpolate missing tenors (years):",
+                [4,6,8,9,11,12,15,18,20,25],default=[4,6,8,12,20])
+            ym=cs(np.array(mt)) if mt else []
+            fig=go.Figure()
+            fig.add_trace(go.Scatter(x=dn,y=cs(dn),mode="lines",
+                line=dict(color=DARK_BLUE,width=2.5),name="Cubic Spline"))
+            fig.add_trace(go.Scatter(x=GSEC_M,y=GSEC_Y,mode="markers",
+                marker=dict(color=LIGHT_BLUE,size=10,line=dict(color=DARK_BLUE,width=2)),name="Observed G-Sec"))
+            if mt:
+                fig.add_trace(go.Scatter(x=list(mt),y=list(ym),mode="markers",
+                    marker=dict(color=GOLD,size=14,symbol="diamond",line=dict(color=DARK_BLUE,width=2)),
+                    name="Interpolated"))
+            fig.update_layout(**PL,height=380,
+                title=dict(text="<b>Indian G-Sec Yield Curve — Cubic Spline</b>",font=dict(color=GOLD,size=13)),
+                xaxis_title="Maturity (Years)",yaxis_title="Yield (% p.a.)")
+            st.plotly_chart(fig,use_container_width=True)
+        if mt:
+            st.dataframe(pd.DataFrame({"Tenor (Yr)":mt,"Interpolated Yield (%)":
+                [round(float(y),4) for y in ym]}),use_container_width=True,hide_index=True)
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">FIMMDA & CCIL</b> use cubic spline / Nelson-Siegel-Svensson
+            to construct the complete G-Sec yield curve from available liquid benchmark yields.
+            </div>""",unsafe_allow_html=True)
+    footer()
+
+
+# ═════════════════════════════════════════════════════════════
+# PAGE: INVALID VALUES
+# ═════════════════════════════════════════════════════════════
+elif page == "⚠️ Invalid Values":
+    hero("Identifying & Treating Invalid Values",
+         "OHLC Logic Checks · Negative Prices · Stale Data · Duplicate Timestamps",
+         ["OHLCV Validation","Stale Detection","Circuit Breakers"])
+
+    tab1,tab2,tab3=st.tabs(["📘 Taxonomy","🔬 Live OHLCV Validator","📋 Treatment Guide"])
+
+    with tab1:
+        shdr("📘","What Are Invalid Values?")
+        st.markdown(f"""<div class="mp-card">
+        An invalid value is a <b>non-null observation</b> that violates:
+        <b style="color:{GOLD};">Domain constraints</b> (Price≤0) ·
+        <b style="color:{GOLD};">Logical constraints</b> (High&lt;Low) ·
+        <b style="color:{GOLD};">Referential integrity</b> (Trade date after settlement) ·
+        <b style="color:{GOLD};">Business rules</b> (Volume=0 during session) ·
+        <b style="color:{GOLD};">Relational constraints</b> (Assets≠Liabilities+Equity)
+        </div>""",unsafe_allow_html=True)
+        shdr("📋","Taxonomy of Invalid Values")
+        for nm,ex,cause,detect,sev in [
+            ("Negative Prices","NSE price=−50","Data feed; sign flip","df[col]>0 assertion",RED),
+            ("Impossible OHLC","High=2800, Low=3100","Data entry / feed error","H≥max(O,C)≥L check",RED),
+            ("Zero Volume on Trading Day","Volume=0 on active day","Missing trade aggregation","Market calendar cross-check","#fd7e14"),
+            ("Crossed Bid-Ask","Bid=105 > Ask=103","Quote data latency","bid<ask assertion","#fd7e14"),
+            ("Future-Dated Entries","Trade 2026 in 2024 DB","System clock error","Max date validation","#fd7e14"),
+            ("Accounting Identity Breach","Assets≠Liabilities+Equity","Consolidation error","Cross-field formula",RED),
+            ("Stale Prices","30 days unchanged in liquid stk","Feed disconnection","Rolling std-dev≈0","#fd7e14"),
+        ]:
+            st.markdown(f"""
+            <div class="mp-card" style="border-left:4px solid {sev};margin-bottom:7px;
+                 display:flex;gap:16px;padding:12px 16px;flex-wrap:wrap;">
+              <div style="min-width:170px;font-weight:700;color:{sev};">{nm}</div>
+              <div style="flex:1;min-width:120px;"><code style="font-size:0.8rem;">{ex}</code></div>
+              <div style="flex:1;min-width:120px;font-size:0.83rem;color:{TXT};">{cause}</div>
+              <div style="flex:1;min-width:120px;"><code style="font-size:0.78rem;">{detect}</code></div>
+            </div>""",unsafe_allow_html=True)
+
+    with tab2:
+        shdr("🔬","Interactive OHLCV Validator")
+        c1,c2,c3=st.columns(3)
+        with c1:
+            nd2=st.slider("Trading Days",30,252,80,key="nd2"); neg=st.checkbox("Inject: Negative Price",True)
+        with c2:
+            ov=st.checkbox("Inject: OHLC Violation",True); zv=st.checkbox("Inject: Zero Volume",True)
+        with c3:
+            ed=st.checkbox("Inject: Extreme Drop −99%",True); st_=st.checkbox("Inject: Stale Prices",True)
+        rng4=np.random.default_rng(99); dt4=pd.bdate_range("2024-01-02",periods=nd2)
+        cl4=2800+np.cumsum(rng4.normal(0,30,nd2))
+        df4=pd.DataFrame({"Open":cl4*(1+rng4.normal(0,0.005,nd2)),"High":cl4*(1+np.abs(rng4.normal(0,0.008,nd2))),
+            "Low":cl4*(1-np.abs(rng4.normal(0,0.008,nd2))),"Close":cl4.copy(),"Volume":rng4.integers(500_000,3_000_000,nd2)},index=dt4)
+        if neg and nd2>=6:  df4.loc[dt4[5],"Close"]=-500
+        if ov and nd2>=11:  df4.loc[dt4[10],"High"]=df4.loc[dt4[10],"Low"]-100
+        if zv and nd2>=16:  df4.loc[dt4[15],"Volume"]=0
+        if ed and nd2>=21:  df4.loc[dt4[20],"Close"]*=0.01
+        if st_ and nd2>=36:
+            for d in dt4[30:35]: df4.loc[d,"Close"]=df4.loc[dt4[29],"Close"]
+        iss=validate_ohlcv(df4)
+        mrow([{"val":str(len(iss)),"lbl":"Total Issues"},
+              {"val":str((iss["Issue"].str.contains("Non-positive") if len(iss)>0 else pd.Series([])).sum()),"lbl":"Negative Prices"},
+              {"val":str((iss["Issue"].str.contains("OHLC") if len(iss)>0 else pd.Series([])).sum()),"lbl":"OHLC Violations"},
+              {"val":str((iss["Issue"].str.contains("Stale") if len(iss)>0 else pd.Series([])).sum()),"lbl":"Stale Prices"}])
+        fig=go.Figure()
+        fig.add_trace(go.Scatter(x=df4.index,y=df4.Close.abs().clip(upper=10000),
+            mode="lines+markers",line=dict(color=LIGHT_BLUE,width=1.5),marker=dict(size=3)))
+        if len(iss)>0:
+            for _,row in iss.iterrows():
+                try:
+                    ts=pd.Timestamp(str(row["Date"]))
+                    if ts in df4.index: fig.add_vline(x=ts,line_dash="dash",line_color=RED,opacity=0.4)
+                except: pass
+        fig.update_layout(**PL,height=340,title=dict(text="<b>RELIANCE.NS — Anomalies (Red=Issues)</b>",font=dict(color=GOLD,size=13)))
+        st.plotly_chart(fig,use_container_width=True)
+        if len(iss)>0: st.dataframe(iss,use_container_width=True,hide_index=True)
+        else: st.markdown(f'<div class="verdict-ok">✅ All validations PASSED — no issues found.</div>',unsafe_allow_html=True)
+
+    with tab3:
+        shdr("📋","Treatment Decision Guide")
+        for treat,when,impl,clr in [
+            ("Convert to NaN","Clear data error (negative price)","df[mask]=np.nan  →  then impute",GREEN),
+            ("Rule-Based Correction","Known systematic error (sign flip)","df['Price']=df['Price'].abs()",GREEN),
+            ("Replace with Adjacent Valid","OHLC logic violation","Forward-fill or arithmetic correction",LIGHT_BLUE),
+            ("Flag and Quarantine","Unknown origin; needs review","df['is_suspect']=1; exclude from model",GOLD),
+            ("Winsorise","Valid but extreme cross-sectional","df[col].clip(lower=lo, upper=hi)",LIGHT_BLUE),
+            ("Consult Source","Ambiguous; cross-verify needed","NSE / BSE / Bloomberg; log action taken",GOLD),
+        ]:
+            st.markdown(f"""
+            <div class="mp-card" style="border-left:4px solid {clr};margin-bottom:7px;display:flex;gap:16px;flex-wrap:wrap;">
+              <div style="min-width:170px;font-weight:700;color:{clr};">🔧 {treat}</div>
+              <div style="flex:1;font-size:0.85rem;color:{TXT};">{when}</div>
+              <div style="flex:1;"><code style="font-size:0.78rem;">{impl}</code></div>
+            </div>""",unsafe_allow_html=True)
+    footer()
+
+
+# ═════════════════════════════════════════════════════════════
+# PAGE: FULL PIPELINE
+# ═════════════════════════════════════════════════════════════
+elif page == "⚙️ Full Cleaning Pipeline":
+    hero("End-to-End Financial Data Cleaning Pipeline",
+         "Production-Grade FinancialDataCleaner — Validate → Missing → Outliers → Audit Trail",
+         ["Production Code","KNN Imputation","Winsorisation","Audit Trail"])
+
+    tab1,tab2,tab3=st.tabs(["🏗️ Architecture","⚙️ Interactive Runner","💻 Source Code"])
+
+    with tab1:
+        shdr("🏗️","Four-Stage Pipeline Architecture")
+        for num,step,clr,title,pts,method in [
+            ("1️⃣","VALIDATE",GREEN,"Schema & Structure",
+             ["Detect mixed-type columns","Ensure DatetimeIndex","Sort temporally","Remove duplicate entries"],
+             "cleaner.validate_schema(df)"),
+            ("2️⃣","MISSING",GOLD,"Missing Data Treatment",
+             ["Drop columns >30% missing","<2% → forward fill","2–15% → KNN imputation (k=7)",">15% → median + flag column"],
+             "cleaner.treat_missing(df)"),
+            ("3️⃣","OUTLIERS","#fd7e14","Outlier Treatment",
+             ["Modified Z-Score (MAD) detection","Configurable threshold (default 4.0)","Actions: winsorise / flag / remove","Skip flag columns"],
+             "cleaner.treat_outliers(df)"),
+            ("4️⃣","REPORT",LIGHT_BLUE,"Cleaning Audit Trail",
+             ["Shape before vs after","Missing count before vs after","Step-by-step log","Model governance documentation"],
+             "cleaner.cleaning_report(df_orig, df_clean)"),
+        ]:
+            st.markdown(f"""
+            <div class="mp-card" style="border-left:5px solid {clr};margin-bottom:10px;">
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <span style="font-size:1.7rem;">{num}</span>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+                    <code style="font-size:0.72rem;color:{clr};background:#060d1a;padding:2px 7px;border-radius:4px;">{step}</code>
+                    <span style="font-weight:700;color:{TXT};">{title}</span>
+                  </div>
+                  <ul style="margin:0;padding-left:18px;color:{TXT};">
+                    {"".join(f'<li style="margin-bottom:2px;font-size:0.84rem;">{p}</li>' for p in pts)}
                   </ul>
+                  <code style="font-size:0.78rem;color:{LIGHT_BLUE};margin-top:6px;display:inline-block;">{method}</code>
+                </div>
+              </div>
+            </div>""",unsafe_allow_html=True)
+
+    with tab2:
+        shdr("⚙️","Interactive Pipeline Runner")
+        c1,c2,c3=st.columns(3)
+        with c1: mt=st.slider("Drop if Missing>(%)",10,60,25,5); wl=st.slider("Winsorisation Level(%)",0.5,5.0,1.0,0.5)
+        with c2: zt=st.slider("MAD Z-Score Threshold",2.0,6.0,3.5,0.25); kk=st.slider("KNN Neighbours",3,15,7)
+        with c3: oa=st.selectbox("Outlier Action",["winsorise","flag","remove"]); nd3=st.slider("Trading Days",100,756,504,50)
+        rng5=np.random.default_rng(42); n5=nd3; dt5=pd.bdate_range("2022-01-03",periods=n5)
+        df5=pd.DataFrame({"RELIANCE":2800+np.cumsum(rng5.normal(0.5,25,n5)),
+            "TCS":3500+np.cumsum(rng5.normal(0.3,40,n5)),"HDFCBANK":1600+np.cumsum(rng5.normal(0.2,18,n5)),
+            "PE_REL":rng5.lognormal(3.4,0.3,n5),"PE_TCS":rng5.lognormal(3.5,0.4,n5)},index=dt5)
+        df5.iloc[50:55,0]=np.nan; df5.iloc[rng5.choice(n5,20,replace=False),2]=np.nan
+        df5.iloc[100,0]=-2800; df5.iloc[150,4]=5000; df5.iloc[200,3]=0.001
+
+        if st.button("▶️  Run Cleaning Pipeline",type="primary"):
+            log=[]
+            def _l(s,d): log.append({"Step":s,"Detail":d})
+            dc=df5.copy()
+            _l("VALIDATE",f"Shape: {dc.shape}"); dc.index=pd.to_datetime(dc.index)
+            if not dc.index.is_monotonic_increasing: dc=dc.sort_index(); _l("SORT","Sorted")
+            nd=dc.index.duplicated().sum()
+            if nd>0: dc=dc[~dc.index.duplicated(keep="last")]; _l("DEDUP",f"{nd} dupes removed")
+            ms=dc.isnull().mean(); _l("MISSING",f"Overall: {dc.isnull().values.mean()*100:.2f}%")
+            dr=ms[ms>mt/100].index.tolist()
+            if dr: dc=dc.drop(columns=dr); _l("DROP-COLS",f"Dropped {len(dr)}: {dr}")
+            for col in dc.columns:
+                pm=dc[col].isnull().mean()
+                if pm==0: continue
+                elif pm<0.02: dc[col]=dc[col].ffill().bfill(); _l("FFILL",f"'{col}': {pm*100:.1f}%→ffill")
+                elif pm>=0.15:
+                    dc[f"{col}_imputed"]=dc[col].isnull().astype(int)
+                    dc[col]=dc[col].fillna(dc[col].median()); _l("MEDIAN",f"'{col}': {pm*100:.1f}%→median+flag")
+            mc=[c for c in dc.columns if 0.02<=dc[c].isnull().mean()<=0.15 and dc[c].dtype in["float64","int64"]]
+            if mc:
+                sc=StandardScaler(); X=dc[mc]; Xs=pd.DataFrame(sc.fit_transform(X),columns=mc,index=dc.index)
+                Xi=pd.DataFrame(sc.inverse_transform(KNNImputer(n_neighbors=kk).fit_transform(Xs)),columns=mc,index=dc.index)
+                dc[mc]=Xi; _l("KNN",f"KNN imputed {len(mc)} cols")
+            nc=[c for c in dc.select_dtypes(include=[np.number]).columns if not c.endswith("_imputed")]
+            for col in nc:
+                s=dc[col].dropna()
+                if len(s)<30: continue
+                med=s.median(); mad=np.median(np.abs(s-med))
+                if mad==0: continue
+                mz=0.6745*np.abs(dc[col]-med)/mad; mask=mz>zt
+                if mask.sum()>0:
+                    if oa=="winsorise":
+                        lo2=dc[col].quantile(wl/100); hi2=dc[col].quantile(1-wl/100)
+                        dc[col]=dc[col].clip(lo2,hi2); _l("WINSORISE",f"'{col}': {mask.sum()}→[{lo2:.1f},{hi2:.1f}]")
+                    elif oa=="flag":
+                        dc[f"{col}_outlier"]=mask.astype(int); _l("FLAG",f"'{col}': {mask.sum()} flagged")
+                    else:
+                        dc.loc[mask,col]=np.nan; dc[col]=dc[col].ffill(); _l("REMOVE",f"'{col}': {mask.sum()} removed")
+            st.session_state.update({"drp":df5,"dcp":dc,"lgp":log})
+
+        if "dcp" in st.session_state:
+            dr2=st.session_state["drp"]; dc2=st.session_state["dcp"]; lg=st.session_state["lgp"]
+            mrow([{"val":str(dr2.shape),"lbl":"Original Shape"},{"val":str(dc2.shape),"lbl":"Cleaned Shape"},
+                  {"val":str(dr2.isnull().sum().sum()),"lbl":"Missing Before"},
+                  {"val":str(dc2.isnull().sum().sum()),"lbl":"Missing After"},{"val":str(len(lg)),"lbl":"Steps"}])
+            c1,c2=st.columns(2)
+            with c1:
+                fig=go.Figure()
+                fig.add_trace(go.Scatter(x=dr2.index,y=dr2.RELIANCE.abs(),name="Before",line=dict(color=RED,width=1.5)))
+                fig.add_trace(go.Scatter(x=dc2.index,y=dc2.get("RELIANCE",dc2.iloc[:,0]),name="After",line=dict(color=GREEN,width=1.5)))
+                fig.update_layout(**PL,height=300,title=dict(text="<b>RELIANCE — Before vs After</b>",font=dict(color=GOLD,size=13)))
+                st.plotly_chart(fig,use_container_width=True)
+            with c2:
+                mb=(dr2.isnull().sum()/len(dr2)*100).reset_index(); mb.columns=["C","P"]
+                ma=(dc2.isnull().sum()/len(dc2)*100).reset_index(); ma.columns=["C","P"]
+                fig2=go.Figure()
+                fig2.add_trace(go.Bar(x=mb.C,y=mb.P,name="Before",marker_color=RED,opacity=0.8))
+                fig2.add_trace(go.Bar(x=ma.C,y=ma.P,name="After",marker_color=GREEN,opacity=0.8))
+                fig2.update_layout(**PL,height=300,barmode="group",title=dict(text="<b>Missing % Before vs After</b>",font=dict(color=GOLD,size=13)))
+                st.plotly_chart(fig2,use_container_width=True)
+            st.dataframe(pd.DataFrame(lg),use_container_width=True,hide_index=True)
+        else:
+            st.info("Click **▶️ Run Cleaning Pipeline** to execute.")
+
+    with tab3:
+        shdr("💻","FinancialDataCleaner — Key Methods")
+        code_str = '''"""
+FinancialDataCleaner — Production-Grade Pipeline
+Prof. V. Ravichandran | themountainpathacademy.com
+"""
+import pandas as pd
+import numpy as np
+from sklearn.impute import KNNImputer
+from sklearn.preprocessing import StandardScaler
+import warnings
+warnings.filterwarnings("ignore")
+
+
+class FinancialDataCleaner:
+    """
+    Production-grade pipeline for cleaning financial time series
+    and cross-sectional datasets.
+
+    Stages:
+        1. validate_schema  — types, DatetimeIndex, sort, dedupe
+        2. treat_missing    — ffill / KNN / median+flag by % missing
+        3. treat_outliers   — MAD-based detection → winsorise/flag/remove
+        4. cleaning_report  — before/after summary + full audit log
+    """
+
+    def __init__(self, config=None):
+        self.config = config or {
+            "missing_threshold": 0.30,   # Drop columns with > 30% missing
+            "winsorise_level":   0.01,   # Winsorise at 1st / 99th percentile
+            "zscore_threshold":  4.0,    # Modified Z-Score (MAD) flag threshold
+            "knn_neighbors":     7,      # K for KNN imputation
+            "outlier_action":    "winsorise",  # "winsorise" | "flag" | "remove"
+        }
+        self.cleaning_log = []
+
+    def _log(self, step, detail):
+        self.cleaning_log.append({"Step": step, "Detail": detail})
+        print(f"  [{step:<12}] {detail}")
+
+    # ─────────────────────────────────────────────────────────
+    # STAGE 1: Schema Validation
+    # ─────────────────────────────────────────────────────────
+    def validate_schema(self, df):
+        """
+        Coerce numeric strings, ensure DatetimeIndex,
+        sort chronologically, remove duplicate timestamps.
+        """
+        self._log("VALIDATE", f"Input shape: {df.shape}")
+
+        # 1a. Coerce object columns that are mostly numeric
+        for col in df.select_dtypes(include="object").columns:
+            n_num = pd.to_numeric(df[col], errors="coerce").notna().sum()
+            if n_num > len(df) * 0.8:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+                self._log("TYPE-FIX", f"'{col}': coerced to numeric")
+
+        # 1b. Ensure DatetimeIndex
+        if not isinstance(df.index, pd.DatetimeIndex):
+            try:
+                df.index = pd.to_datetime(df.index)
+                self._log("INDEX", "Converted index to DatetimeIndex")
+            except Exception as e:
+                self._log("INDEX-WARN", f"Could not parse index: {e}")
+
+        # 1c. Sort chronologically
+        if not df.index.is_monotonic_increasing:
+            df = df.sort_index()
+            self._log("SORT", "Sorted index ascending (chronological)")
+
+        # 1d. Remove duplicate timestamps (keep last)
+        n_dupes = df.index.duplicated().sum()
+        if n_dupes > 0:
+            df = df[~df.index.duplicated(keep="last")]
+            self._log("DEDUP", f"Removed {n_dupes} duplicate timestamp(s)")
+
+        return df
+
+    # ─────────────────────────────────────────────────────────
+    # STAGE 2: Missing Data Treatment
+    # ─────────────────────────────────────────────────────────
+    def treat_missing(self, df):
+        """
+        Three-tier strategy based on % missing per column:
+            < 2%         -> Forward-fill (LOCF) then backward-fill
+            2 – 15%      -> KNN imputation (batch, StandardScaler)
+            > 15%        -> Median imputation + binary flag column
+            > threshold  -> Column dropped entirely
+        """
+        miss_pct = df.isnull().mean()
+        overall  = df.isnull().values.mean() * 100
+        self._log("MISSING", f"Overall missing rate: {overall:.2f}%")
+
+        # Drop columns exceeding missing_threshold
+        drop_cols = miss_pct[
+            miss_pct > self.config["missing_threshold"]
+        ].index.tolist()
+        if drop_cols:
+            df = df.drop(columns=drop_cols)
+            self._log("DROP-COLS",
+                f"Dropped {len(drop_cols)} col(s) "
+                f"(>{self.config['missing_threshold']*100:.0f}% missing): {drop_cols}")
+            miss_pct = df.isnull().mean()
+
+        # Per-column strategy
+        for col in df.columns:
+            pm = df[col].isnull().mean()
+            if pm == 0:
+                continue
+            elif pm < 0.02:
+                df[col] = df[col].ffill().bfill()
+                self._log("FFILL", f"'{col}': {pm*100:.1f}% -> forward/backward fill")
+            elif pm >= 0.15:
+                med = df[col].median()
+                df[f"{col}_imputed"] = df[col].isnull().astype(int)
+                df[col] = df[col].fillna(med)
+                self._log("MEDIAN",
+                    f"'{col}': {pm*100:.1f}% -> median ({med:.2f}); "
+                    f"flag col '{col}_imputed' added")
+            # 2–15%: handled in batch KNN block below
+
+        # Batch KNN for moderate-missing numeric columns
+        mod_cols = [
+            c for c in df.columns
+            if 0.02 <= df[c].isnull().mean() <= 0.15
+            and df[c].dtype in ["float64", "int64"]
+            and not c.endswith("_imputed")
+        ]
+        if mod_cols:
+            scaler   = StandardScaler()
+            X        = df[mod_cols]
+            Xs       = pd.DataFrame(scaler.fit_transform(X),
+                                    columns=mod_cols, index=df.index)
+            imputer  = KNNImputer(n_neighbors=self.config["knn_neighbors"],
+                                  weights="distance")
+            Xi       = pd.DataFrame(
+                           scaler.inverse_transform(imputer.fit_transform(Xs)),
+                           columns=mod_cols, index=df.index)
+            df[mod_cols] = Xi
+            self._log("KNN",
+                f"KNN (k={self.config['knn_neighbors']}) imputed "
+                f"{len(mod_cols)} col(s): {mod_cols}")
+
+        return df
+
+    # ─────────────────────────────────────────────────────────
+    # STAGE 3: Outlier Treatment
+    # ─────────────────────────────────────────────────────────
+    def treat_outliers(self, df, numeric_cols=None):
+        """
+        Modified Z-Score (MAD) — robust to outliers in the data itself,
+        unlike standard Z-Score where sigma is inflated by extreme values.
+
+            MAD        = Median |Xi - X_tilde|
+            Modified Z = 0.6745 * |Xi - X_tilde| / MAD
+
+        Actions:
+            "winsorise" -> clip to [lo_pct, hi_pct] percentile bounds
+            "flag"      -> add <col>_outlier binary column
+            "remove"    -> set to NaN then forward-fill
+        """
+        if numeric_cols is None:
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        numeric_cols = [c for c in numeric_cols
+                        if not c.endswith(("_imputed", "_outlier"))]
+
+        action = self.config["outlier_action"]
+
+        for col in numeric_cols:
+            s = df[col].dropna()
+            if len(s) < 30:
+                continue
+            median = s.median()
+            mad    = np.median(np.abs(s - median))
+            if mad == 0:
+                continue
+            mod_z = 0.6745 * np.abs(df[col] - median) / mad
+            mask  = mod_z > self.config["zscore_threshold"]
+            n_out = mask.sum()
+            if n_out == 0:
+                continue
+
+            if action == "winsorise":
+                lo = df[col].quantile(self.config["winsorise_level"])
+                hi = df[col].quantile(1 - self.config["winsorise_level"])
+                df[col] = df[col].clip(lower=lo, upper=hi)
+                self._log("WINSORISE",
+                    f"'{col}': {n_out} outlier(s) clipped to [{lo:.2f}, {hi:.2f}]")
+            elif action == "flag":
+                df[f"{col}_outlier"] = mask.astype(int)
+                self._log("FLAG", f"'{col}': {n_out} outlier(s) flagged")
+            elif action == "remove":
+                df.loc[mask, col] = np.nan
+                df[col] = df[col].ffill()
+                self._log("REMOVE", f"'{col}': {n_out} outlier(s) -> NaN + ffill")
+
+        return df
+
+    # ─────────────────────────────────────────────────────────
+    # STAGE 4: Cleaning Report
+    # ─────────────────────────────────────────────────────────
+    def cleaning_report(self, df_original, df_clean):
+        """Print before/after summary and return log as DataFrame."""
+        print("\\n" + "=" * 60)
+        print("  FINANCIAL DATA CLEANING REPORT")
+        print("=" * 60)
+        print(f"  Original shape  : {df_original.shape}")
+        print(f"  Cleaned  shape  : {df_clean.shape}")
+        print(f"  Rows delta      : {df_clean.shape[0] - df_original.shape[0]:+d}")
+        print(f"  Cols delta      : {df_clean.shape[1] - df_original.shape[1]:+d}")
+        print(f"  Missing (before): {df_original.isnull().sum().sum()}")
+        print(f"  Missing (after) : {df_clean.isnull().sum().sum()}")
+        print(f"  Cleaning steps  : {len(self.cleaning_log)}")
+        print("\\nCleaning log:")
+        for e in self.cleaning_log:
+            print(f"  {e['Step']:<14} {e['Detail']}")
+        return pd.DataFrame(self.cleaning_log)
+
+    # ─────────────────────────────────────────────────────────
+    # MASTER METHOD
+    # ─────────────────────────────────────────────────────────
+    def clean(self, df):
+        """Run all four stages and return the cleaned DataFrame."""
+        print("\\nStarting Financial Data Cleaning Pipeline...")
+        print("-" * 50)
+        self.cleaning_log = []   # reset for re-runs
+        df_clean = df.copy()
+        df_clean = self.validate_schema(df_clean)
+        df_clean = self.treat_missing(df_clean)
+        df_clean = self.treat_outliers(df_clean)
+        return df_clean
+
+
+# ──────────────────────────────────────────────────────────────
+# USAGE EXAMPLE
+# ──────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    np.random.seed(42)
+    dates  = pd.bdate_range("2022-01-03", "2024-12-31")
+    n      = len(dates)
+    df_raw = pd.DataFrame({
+        "RELIANCE" : 2800 + np.cumsum(np.random.normal(0.5, 25, n)),
+        "TCS"      : 3500 + np.cumsum(np.random.normal(0.3, 40, n)),
+        "HDFCBANK" : 1600 + np.cumsum(np.random.normal(0.2, 18, n)),
+        "PE_REL"   : np.random.lognormal(3.4, 0.3, n),
+        "PE_TCS"   : np.random.lognormal(3.5, 0.4, n),
+    }, index=dates)
+
+    # Inject realistic problems
+    df_raw.iloc[50:55, 0]                   = np.nan    # block missing
+    df_raw.iloc[np.random.choice(n, 20), 2] = np.nan    # random missing
+    df_raw.iloc[100, 0]                     = -2800     # negative price
+    df_raw.iloc[150, 4]                     = 5000      # extreme outlier PE
+    df_raw.iloc[200, 3]                     = 0.001     # extreme low PE
+
+    cleaner = FinancialDataCleaner(config={
+        "missing_threshold" : 0.25,
+        "winsorise_level"   : 0.01,
+        "zscore_threshold"  : 3.5,
+        "knn_neighbors"     : 7,
+        "outlier_action"    : "winsorise",
+    })
+
+    df_cleaned = cleaner.clean(df_raw)
+    cleaner.cleaning_report(df_raw, df_cleaned)
+'''
+        st.code(code_str, language="python")
+    footer()
+
+
+# ═════════════════════════════════════════════════════════════
+# PAGE: CASE STUDIES
+# ═════════════════════════════════════════════════════════════
+elif page == "📚 Case Studies":
+    hero("Indian Financial Market Case Studies",
+         "Demonetisation · IL&FS Default · NSE Feed Outage · Yes Bank Crisis · Franklin Templeton",
+         ["Nov 2016","Sep 2018","Feed MCAR","Mar 2020","Apr 2020"])
+
+    # ── Helper: styled download button ────────────────────────
+    def dl_button(csv_bytes, filename, label):
+        st.download_button(
+            label=label,
+            data=csv_bytes,
+            file_name=filename,
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    def dl_info(rows, cols, note):
+        st.markdown(f"""
+        <div class="mp-card-blue" style="padding:12px 16px;margin-bottom:0;">
+          <div style="font-size:0.78rem;color:{MUTED};margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Dataset Info</div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <span style="font-size:0.85rem;color:{TXT};">📏 <b style="color:{GOLD};">{rows}</b> rows</span>
+            <span style="font-size:0.85rem;color:{TXT};">🗂️ <b style="color:{GOLD};">{cols}</b> columns</span>
+          </div>
+          <div style="font-size:0.82rem;color:{LIGHT_BLUE};margin-top:6px;">ℹ️ {note}</div>
+        </div>""", unsafe_allow_html=True)
+
+    # ── Build all three datasets upfront (same seeds as charts) ──
+
+    # CASE 1 ─ Demonetisation: full 2016 daily return series
+    rng6 = np.random.default_rng(42)
+    n6   = 252
+    dt6  = pd.bdate_range("2016-01-04", periods=n6)
+    ret6 = rng6.normal(0.04/252, 0.12/np.sqrt(252), n6)
+    ret6[215]=-0.040; ret6[216]=-0.018; ret6[217]=-0.012; ret6[218]=0.008
+    s6   = pd.Series(ret6*100, index=dt6)
+    zs6  = np.abs((s6-s6.mean())/s6.std())
+    # Enrich with price level and event flag
+    price6 = 7946 * (1 + s6/100).cumprod()   # start near actual 2016 NIFTY open
+    df_cs1 = pd.DataFrame({
+        "Date":              dt6.strftime("%Y-%m-%d"),
+        "NIFTY50_Close":     price6.round(2).values,
+        "Daily_Return_Pct":  s6.round(4).values,
+        "Z_Score":           zs6.round(4).values,
+        "Outlier_Flag":      (zs6 > 3).astype(int).values,
+        "Demonetisation":    [1 if d.strftime("%Y-%m-%d") in
+                              ["2016-11-08","2016-11-09","2016-11-10","2016-11-11"] else 0
+                              for d in dt6],
+        "Event_Note":        ["Demonetisation Announced" if d.strftime("%Y-%m-%d")=="2016-11-08"
+                              else ("Post-Demonetisation Shock" if d.strftime("%Y-%m-%d") in
+                              ["2016-11-09","2016-11-10","2016-11-11"] else "")
+                              for d in dt6],
+    })
+
+    # CASE 2 ─ IL&FS: quarterly financials panel with missingness
+    rng7 = np.random.default_rng(7)
+    qtrs = ["Q1 2017","Q2 2017","Q3 2017","Q4 2017",
+            "Q1 2018","Q2 2018","Q3 2018","Q4 2018"]
+    mr   = [0.05, 0.06, 0.07, 0.09, 0.14, 0.22, 0.45, 0.65]
+    cfo_v= [round(float(rng7.normal(200,20)),2), round(float(rng7.normal(195,22)),2),
+             round(float(rng7.normal(180,25)),2), round(float(rng7.normal(160,30)),2),
+             round(float(rng7.normal(120,40)),2), None, None, None]
+    rev_v= [round(float(rng7.normal(1800,80)),2), round(float(rng7.normal(1780,90)),2),
+             round(float(rng7.normal(1740,100)),2), round(float(rng7.normal(1690,120)),2),
+             round(float(rng7.normal(1580,150)),2), round(float(rng7.normal(1420,200)),2),
+             None, None]
+    debt_v=[round(float(rng7.normal(9200,150)),2), round(float(rng7.normal(9450,160)),2),
+             round(float(rng7.normal(9750,180)),2), round(float(rng7.normal(10100,200)),2),
+             round(float(rng7.normal(10600,250)),2), None, None, None]
+    icr_v= [round(float(rng7.normal(1.85,0.08)),3), round(float(rng7.normal(1.72,0.09)),3),
+             round(float(rng7.normal(1.61,0.10)),3), round(float(rng7.normal(1.44,0.12)),3),
+             round(float(rng7.normal(1.18,0.15)),3), None, None, None]
+    df_cs2 = pd.DataFrame({
+        "Quarter":               qtrs,
+        "Data_Missingness_Pct":  [round(m*100,1) for m in mr],
+        "Operating_CFO_Cr":      cfo_v,
+        "Revenue_Cr":            rev_v,
+        "Total_Debt_Cr":         debt_v,
+        "Interest_Coverage":     icr_v,
+        "CFO_Missing_Flag":      [1 if v is None else 0 for v in cfo_v],
+        "Revenue_Missing_Flag":  [1 if v is None else 0 for v in rev_v],
+        "Debt_Missing_Flag":     [1 if v is None else 0 for v in debt_v],
+        "Distress_Label":        [0,0,0,0,0,1,1,1],
+        "Event_Note":            ["Normal","Normal","Liquidity squeeze emerging",
+                                  "Covenant breach reported","Credit downgrade warning",
+                                  "CP default — disclosure halted",
+                                  "NCLT proceedings","Resolution in progress"],
+    })
+
+    # CASE 3 ─ NSE Feed Outage: 1-min intraday with gap
+    rng8 = np.random.default_rng(99)
+    ts8  = pd.date_range("2024-01-15 09:15", "2024-01-15 15:30", freq="1min")
+    pr8  = 21500 + np.cumsum(rng8.normal(0, 15, len(ts8)))
+    vol8 = rng8.integers(5000, 80000, len(ts8))
+    gap  = (ts8 >= "2024-01-15 10:30") & (ts8 <= "2024-01-15 13:30")
+    pr8g = pr8.copy().astype(float); pr8g[gap] = np.nan
+    vol8g= vol8.copy().astype(float); vol8g[gap] = np.nan
+    df_cs3 = pd.DataFrame({
+        "Timestamp_IST":      ts8.strftime("%Y-%m-%d %H:%M"),
+        "NIFTY50_Price_True": pr8.round(2),
+        "NIFTY50_Price_Obs":  pr8g.round(2),   # NaN during outage
+        "Volume_True":        vol8,
+        "Volume_Obs":         vol8g,
+        "Feed_Outage_Flag":   gap.astype(int),
+        "Missingness_Mechanism": ["MCAR" if g else "Complete" for g in gap],
+    })
+
+    # ── TABS ──────────────────────────────────────────────────
+    tab1,tab2,tab3,tab4,tab5 = st.tabs([
+        "📚 Case 1: Demonetisation (2016)",
+        "📚 Case 2: IL&FS Default (2018)",
+        "📚 Case 3: NSE Feed Outage",
+        "📚 Case 4: Yes Bank Crisis (2020)",
+        "📚 Case 5: Franklin Templeton MF (2020)"])
+
+    # ══════════════════════════════════════════════════════════
+    with tab1:
+        st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px;">
+        <span class="badge">Case Study 1</span>
+        <span class="badge badge-red">GENUINE EXTREME EVENT</span>
+        <h3 style="color:{GOLD};margin:10px 0 6px;font-family:'Playfair Display',serif;">
+          Demonetisation Shock — Outlier or Structural Break?</h3>
+        <p style="color:{TXT};margin:0;">8 November 2016: NIFTY 50 fell 6.1% intraday, closed −4.0%.
+          Z-score ≈ −5.2σ. The question: should this be removed from the dataset?</p>
+        </div>""", unsafe_allow_html=True)
+
+        sub1a, sub1b = st.tabs(["📊 Analysis", "📥 Download Raw Data"])
+
+        with sub1a:
+            zs6_  = np.abs((s6-s6.mean())/s6.std())
+            fig=make_subplots(rows=2,cols=1,shared_xaxes=True,
+                subplot_titles=["NIFTY 50 Daily Returns (%)","Z-Score"],row_heights=[0.65,0.35])
+            fig.add_trace(go.Bar(x=s6.index,y=s6,
+                marker_color=[RED if v<0 else GREEN for v in s6]),row=1,col=1)
+            fig.add_vrect(x0="2016-11-08",x1="2016-11-11",
+                fillcolor="rgba(255,215,0,0.09)",line_color="rgba(255,215,0,0.4)",
+                annotation_text="Demonetisation",annotation_position="top left",row=1,col=1)
+            fig.add_trace(go.Scatter(x=s6.index,y=zs6_,mode="lines",
+                line=dict(color=LIGHT_BLUE,width=1.5)),row=2,col=1)
+            fig.add_hline(y=3,line_dash="dash",line_color=RED,row=2,col=1)
+            fig.update_layout(**PL,height=430,showlegend=False,
+                title=dict(text="<b>NIFTY 50 — 2016 Returns with Demonetisation Shock</b>",
+                           font=dict(color=GOLD,size=13)))
+            st.plotly_chart(fig,use_container_width=True)
+
+            for uc,action,reason,clr in [
+                ("VaR / ES Models","🟢 RETAIN","This IS the tail event the model must price.",GREEN),
+                ("CAPM / Factor Regression","🟡 FLAG + DUMMY","Add D_nov2016=1 indicator instead of removing.",GOLD),
+                ("GARCH Volatility","🟢 RETAIN","Post-demonetisation volatility clustering is a key stylised fact.",GREEN),
+                ("Stress Testing","🟢 RETAIN","Prime stress scenario. Historical simulation VaR must include this.",GREEN),
+            ]:
+                st.markdown(f"""
+                <div class="mp-card" style="border-left:4px solid {clr};margin-bottom:6px;display:flex;gap:14px;">
+                  <div style="min-width:170px;">
+                    <div style="font-weight:700;color:{TXT};font-size:0.87rem;">{uc}</div>
+                    <div style="font-weight:700;color:{clr};font-size:0.84rem;">{action}</div>
+                  </div>
+                  <div style="font-size:0.85rem;color:{TXT};">{reason}</div>
+                </div>""", unsafe_allow_html=True)
+            st.markdown(f'<div class="verdict-bad">⚠️ A mechanical |Z|>3 rule would flag Demonetisation for removal — gutting the tail risk signal. Domain knowledge must override blind statistical rules.</div>',unsafe_allow_html=True)
+
+        with sub1b:
+            shdr("📥","Case 1 Raw Data — NIFTY 50 Daily Returns (2016)")
+            st.markdown(f"""<div class="mp-card">
+            This dataset contains the full 2016 NIFTY 50 daily return series used in the analysis,
+            enriched with Z-scores, outlier flags, and the Demonetisation event marker.
+            Use it to practise outlier detection, VaR back-testing, and GARCH volatility modelling.
+            </div>""", unsafe_allow_html=True)
+
+            # Preview table
+            st.dataframe(df_cs1.head(20), use_container_width=True, hide_index=True)
+
+            c1,c2 = st.columns(2)
+            with c1:
+                dl_info(len(df_cs1), len(df_cs1.columns),
+                    "Simulated NSE-calibrated data · Seed 42 · 252 business days · 2016")
+            with c2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                dl_button(
+                    df_cs1.to_csv(index=False).encode("utf-8"),
+                    "case1_nifty50_demonetisation_2016.csv",
+                    "⬇️  Download Case 1 CSV"
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            shdr("📋","Column Definitions")
+            st.dataframe(pd.DataFrame({
+                "Column":      ["Date","NIFTY50_Close","Daily_Return_Pct","Z_Score",
+                                "Outlier_Flag","Demonetisation","Event_Note"],
+                "Type":        ["date","float","float","float","int (0/1)","int (0/1)","string"],
+                "Description": [
+                    "Trading date (business days only, YYYY-MM-DD)",
+                    "NIFTY 50 index level (simulated, calibrated to 2016 range)",
+                    "Daily log return as a percentage",
+                    "Standard Z-score of daily return (|Z| > 3 → flagged)",
+                    "1 if |Z| > 3 (statistical outlier), else 0",
+                    "1 on the four Demonetisation shock days (8–11 Nov 2016)",
+                    "Human-readable event label for the date",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Suggested Exercises with this Dataset:</b><br>
+            1. Compute rolling 21-day VaR at 95% and 99% — with and without the Demonetisation rows<br>
+            2. Fit a GARCH(1,1) model on <code>Daily_Return_Pct</code> and observe the volatility clustering<br>
+            3. Run a CAPM regression adding <code>Demonetisation</code> as a dummy variable<br>
+            4. Compare the return distribution using QQ-plots before and after Winsorisation
+            </div>""", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════
+    with tab2:
+        st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px;">
+        <span class="badge">Case Study 2</span>
+        <span class="badge badge-red">MNAR — Danger Signal</span>
+        <h3 style="color:{GOLD};margin:10px 0 6px;font-family:'Playfair Display',serif;">
+          IL&FS Default — Missing Data as a Warning Signal</h3>
+        <p style="color:{TXT};margin:0;">IL&FS defaulted on commercial paper in September 2018.
+          Months before, subsidiaries began <b>selectively reporting</b> — the missingness was MNAR.</p>
+        </div>""", unsafe_allow_html=True)
+
+        sub2a, sub2b = st.tabs(["📊 Analysis", "📥 Download Raw Data"])
+
+        with sub2a:
+            fig=make_subplots(rows=1,cols=2,
+                subplot_titles=["Missingness Rate Over Time","Operating Cash Flow (₹ Cr)"])
+            fig.add_trace(go.Bar(x=qtrs,y=[m*100 for m in mr],
+                marker_color=[GREEN if m<0.10 else(GOLD if m<0.25 else RED) for m in mr]),row=1,col=1)
+            fig.add_hline(y=10,line_dash="dash",line_color=GOLD,
+                annotation_text="Warning 10%",row=1,col=1)
+            cfo_plot = [v if v is not None else np.nan for v in cfo_v]
+            fig.add_trace(go.Scatter(x=qtrs,y=cfo_plot,mode="lines+markers",
+                line=dict(color=LIGHT_BLUE,width=2)),row=1,col=2)
+            fig.update_layout(**PL,height=360,showlegend=False,
+                title=dict(text="<b>IL&FS: Missing Data as Early Warning Signal</b>",
+                           font=dict(color=GOLD,size=13)))
+            st.plotly_chart(fig,use_container_width=True)
+
+            for i,(l,d) in enumerate([
+                ("Investigate WHY before deciding HOW","The mechanism (MNAR vs MAR) changes the approach entirely."),
+                ("Systematic missing = RED FLAG in credit","Missing disclosure is itself a distress signal."),
+                ("Missingness flags as model features","Binary flag (cash_flow_missing=1) → powerful ML predictor."),
+                ("MAR assumption missed the signal","Asking 'why?' correctly identified distress before default."),
+            ],1):
+                st.markdown(f"""
+                <div class="mp-card" style="margin-bottom:7px;display:flex;gap:12px;">
+                  <div style="width:28px;height:28px;background:{GOLD};color:{DARK_BLUE};border-radius:50%;
+                       display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">{i}</div>
+                  <div><div style="font-weight:700;color:{TXT};">{l}</div>
+                  <div style="font-size:0.83rem;color:{MUTED};margin-top:2px;">{d}</div></div>
+                </div>""", unsafe_allow_html=True)
+
+        with sub2b:
+            shdr("📥","Case 2 Raw Data — IL&FS Quarterly Financial Panel (2017–2018)")
+            st.markdown(f"""<div class="mp-card">
+            Quarterly financial data for the IL&FS group covering eight quarters (Q1 2017 – Q4 2018).
+            The dataset deliberately includes MNAR-pattern missingness — financial disclosures that
+            disappeared as the entity approached default. Includes binary flags for ML credit models.
+            </div>""", unsafe_allow_html=True)
+
+            st.dataframe(df_cs2, use_container_width=True, hide_index=True)
+
+            c1,c2 = st.columns(2)
+            with c1:
+                dl_info(len(df_cs2), len(df_cs2.columns),
+                    "Simulated MNAR panel · Calibrated to IL&FS public disclosures · 8 quarters")
+            with c2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                dl_button(
+                    df_cs2.to_csv(index=False).encode("utf-8"),
+                    "case2_ilfs_quarterly_mnar_panel.csv",
+                    "⬇️  Download Case 2 CSV"
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            shdr("📋","Column Definitions")
+            st.dataframe(pd.DataFrame({
+                "Column": [
+                    "Quarter","Data_Missingness_Pct","Operating_CFO_Cr","Revenue_Cr",
+                    "Total_Debt_Cr","Interest_Coverage","CFO_Missing_Flag",
+                    "Revenue_Missing_Flag","Debt_Missing_Flag","Distress_Label","Event_Note"],
+                "Type": ["string","float","float (NaN)","float (NaN)","float (NaN)",
+                         "float (NaN)","int","int","int","int (0/1)","string"],
+                "Description": [
+                    "Fiscal quarter label",
+                    "% of financial fields missing for this quarter",
+                    "Operating cash flow in ₹ Crore (NaN = not disclosed)",
+                    "Revenue in ₹ Crore (NaN = not disclosed)",
+                    "Total debt in ₹ Crore (NaN = not disclosed)",
+                    "EBIT / Interest expense (NaN = not disclosed)",
+                    "1 if CFO not disclosed, else 0 (use as ML feature)",
+                    "1 if Revenue not disclosed, else 0",
+                    "1 if Debt not disclosed, else 0",
+                    "1 = distress / post-default quarter, 0 = normal",
+                    "Human-readable event label",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Suggested Exercises with this Dataset:</b><br>
+            1. Demonstrate MNAR: show that <code>CFO_Missing_Flag</code> correlates with <code>Distress_Label</code><br>
+            2. Build a logistic regression using missing flags as features — compare AUC with and without flags<br>
+            3. Apply KNN imputation (k=3) and compare imputed CFO with the true trajectory<br>
+            4. Compute a distress scoring model: weighted sum of ICR, CFO trend, and missingness rate
+            </div>""", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════
+    with tab3:
+        st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px;">
+        <span class="badge">Case Study 3</span>
+        <span class="badge badge-blue">MCAR — Feed Outage</span>
+        <h3 style="color:{GOLD};margin:10px 0 6px;font-family:'Playfair Display',serif;">
+          NSE Data Feed Outage — Block Missing Treatment</h3>
+        <p style="color:{TXT};margin:0;">A quant fund experiences a <b>3-hour outage (10:30–13:30 IST)</b>.
+          Missing data is MCAR — random technical failure unrelated to market conditions.</p>
+        </div>""", unsafe_allow_html=True)
+
+        sub3a, sub3b = st.tabs(["📊 Analysis", "📥 Download Raw Data"])
+
+        with sub3a:
+            s8  = pd.Series(pr8,  index=ts8)
+            s8g = pd.Series(pr8g, index=ts8)
+            fig=go.Figure()
+            fig.add_trace(go.Scatter(x=s8.index,y=s8,name="True (hypothetical)",
+                line=dict(color=GREEN,width=1,dash="dot"),opacity=0.4))
+            fig.add_trace(go.Scatter(x=s8g.index,y=s8g,name="Observed (with outage)",
+                line=dict(color=LIGHT_BLUE,width=2)))
+            fig.add_vrect(x0="2024-01-15 10:30",x1="2024-01-15 13:30",
+                fillcolor="rgba(220,53,69,0.09)",line_color="rgba(220,53,69,0.33)",
+                annotation_text="Feed Outage (MCAR)",annotation_position="top left")
+            fig.update_layout(**PL,height=360,
+                title=dict(text="<b>NIFTY 50 Intraday — 3-Hour Data Feed Outage</b>",
+                           font=dict(color=GOLD,size=13)),
+                xaxis_title="Time (IST)",yaxis_title="Index Value")
+            st.plotly_chart(fig,use_container_width=True)
+
+            for uc,treat,reason,clr in [
+                ("End-of-Day P&L","Forward-fill; use closing prices","Final closing prices available",GREEN),
+                ("Intraday VaR","Flag and EXCLUDE the 3-hour window","Cannot reliably impute for risk",RED),
+                ("Momentum Signal","Do NOT trade during outage","Stale prices → false signals",RED),
+                ("VWAP","Partial VWAP using available trades","Note incomplete window",GOLD),
+                ("Historical Backtesting","Fill with exchange-published data","NSE/BSE historical tick downloads",GOLD),
+            ]:
+                st.markdown(f"""
+                <div class="mp-card" style="border-left:4px solid {clr};margin-bottom:6px;
+                     display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;">
+                  <div style="min-width:150px;font-weight:700;color:{LIGHT_BLUE};font-size:0.87rem;">{uc}</div>
+                  <div style="flex:1;font-weight:600;color:{clr};font-size:0.85rem;">{treat}</div>
+                  <div style="flex:2;font-size:0.83rem;color:{TXT};">{reason}</div>
+                </div>""", unsafe_allow_html=True)
+
+        with sub3b:
+            shdr("📥","Case 3 Raw Data — NIFTY 50 Intraday Feed (1-Min, 15 Jan 2024)")
+            st.markdown(f"""<div class="mp-card">
+            One full trading day of 1-minute NIFTY 50 tick data (09:15 – 15:30 IST) with a simulated
+            3-hour MCAR feed outage injected (10:30 – 13:30). Includes both the true price series and
+            the observed series with NaN gaps, plus volume data and outage flags for treatment exercises.
+            </div>""", unsafe_allow_html=True)
+
+            # Quick summary metrics
+            n_obs   = int((~gap).sum())
+            n_gap   = int(gap.sum())
+            gap_pct = round(n_gap / len(ts8) * 100, 1)
+            mrow([
+                {"val": str(len(df_cs3)), "lbl": "Total 1-Min Bars"},
+                {"val": str(n_obs),       "lbl": "Complete Observations"},
+                {"val": str(n_gap),       "lbl": "Missing (Outage)"},
+                {"val": f"{gap_pct}%",    "lbl": "% Data Lost"},
+            ])
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.dataframe(df_cs3.head(30), use_container_width=True, hide_index=True)
+
+            c1,c2 = st.columns(2)
+            with c1:
+                dl_info(len(df_cs3), len(df_cs3.columns),
+                    "1-min intraday · MCAR outage 10:30–13:30 IST · 375 bars · Seed 99")
+            with c2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                dl_button(
+                    df_cs3.to_csv(index=False).encode("utf-8"),
+                    "case3_nse_intraday_feed_outage_2024.csv",
+                    "⬇️  Download Case 3 CSV"
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            shdr("📋","Column Definitions")
+            st.dataframe(pd.DataFrame({
+                "Column": [
+                    "Timestamp_IST","NIFTY50_Price_True","NIFTY50_Price_Obs",
+                    "Volume_True","Volume_Obs","Feed_Outage_Flag","Missingness_Mechanism"],
+                "Type": ["datetime","float","float (NaN)","int","float (NaN)","int (0/1)","string"],
+                "Description": [
+                    "1-minute bar timestamp in IST (YYYY-MM-DD HH:MM)",
+                    "Hypothetical true price (unaffected by outage)",
+                    "Observed price — NaN during 10:30–13:30 outage window",
+                    "Simulated trade volume (true, unaffected)",
+                    "Observed volume — NaN during outage (feed not received)",
+                    "1 during feed outage window, 0 otherwise",
+                    "'MCAR' during outage, 'Complete' otherwise",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Suggested Exercises with this Dataset:</b><br>
+            1. Compute VWAP using <code>NIFTY50_Price_Obs</code> × <code>Volume_Obs</code> — note partial result vs true VWAP<br>
+            2. Apply forward-fill to <code>NIFTY50_Price_Obs</code> and compute returns — count artificial zero-return bars<br>
+            3. Build a "data quality gate": flag any 5-min window with completeness &lt;80%<br>
+            4. Compare intraday volatility (std of returns) before and after the outage window
+            </div>""", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════
+    with tab4:
+        st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px;">
+        <span class="badge">Case Study 4</span>
+        <span class="badge badge-red">GENUINE EXTREME EVENT · STRUCTURAL BREAK</span>
+        <h3 style="color:{GOLD};margin:10px 0 6px;font-family:'Playfair Display',serif;">
+          Yes Bank Crisis — Outlier Detection &amp; Structural Break Classification</h3>
+        <p style="color:{TXT};margin:0;">March 2020: RBI placed Yes Bank under a moratorium,
+          superseding its board and capping withdrawals at ₹50,000. Daily stock returns showed
+          extreme outliers. Was this a data error, a genuine tail event, or a structural break
+          requiring regime analysis? This case tests the three-way outlier classification framework.</p>
+        </div>""", unsafe_allow_html=True)
+
+        sub4a, sub4b = st.tabs(["📊 Analysis", "📥 Download Raw Data"])
+
+        with sub4a:
+            shdr("📘", "Background — The Yes Bank Collapse")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Moratorium Date", "5 Mar 2020")
+            c2.metric("Peak Stock Price", "₹393 (Jan 2019)")
+            c3.metric("Trough Price", "₹5.65 (Mar 2020)")
+            c4.metric("Peak-to-Trough", "−98.6%")
+
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                st.markdown(f"""<div class="mp-card">
+                <b style="color:{GOLD};">Timeline of the Crisis</b><br><br>
+                • <b>2018–2019:</b> RBI flags divergence in NPA recognition; CEO exits<br>
+                • <b>Sep 2019:</b> Rating downgrade; deposit outflows accelerate<br>
+                • <b>Mar 2020:</b> RBI moratorium — withdrawals capped at ₹50,000<br>
+                • <b>Mar 2020:</b> SBI-led reconstruction scheme announced<br>
+                • <b>AT-1 Bonds:</b> ₹8,415 Cr Additional Tier-1 bonds written down to zero —
+                  controversial treatment triggering litigation
                 </div>
                 <div class="mp-card-red">
-                  <b style="color:{RED};">What Officers Found on Physical Verification</b>
-                  <ul style="margin:10px 0; padding-left:20px; color:{TXT};">
-                    <li>All three "suppliers" — same registered address (vacant plot)</li>
-                    <li>No physical inventory; no e-way bills matched</li>
-                    <li>Bank accounts linked to same beneficial owner</li>
-                    <li>₹5 Cr ITC fraud confirmed; criminal prosecution initiated</li>
-                  </ul>
-                </div>""", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""<div class="mp-card-green">
-              <b style="color:{GREEN};">What Legitimate Textile Invoices Look Like</b><br><br>
-              Real invoices: Qty × Rate × (1+GST%) — creating non-round amounts like ₹145.50/metre.
-              Natural digit variation. MAD &lt; 0.010.
-            </div>""", unsafe_allow_html=True)
-            if result:
-                st.dataframe(pd.DataFrame({
-                    "Metric":["Detection time","ITC demand raised","Penalty (200%)","Criminal referral","Suppliers blacklisted"],
-                    "Outcome":["< 2 hours (analytics)","₹5,00,00,000","₹10,00,00,000","Yes — CGST Act Sec 132","3 entities"]}),
-                    use_container_width=True, hide_index=True)
-
-    with tab4:
-        if result:
-            for i,(title,content) in enumerate([
-                ("Why GST Fraud Fails Benford","Fabricated invoices cluster unnaturally — humans choose amounts mentally, not through real calculations."),
-                ("The Digit-9 Structuring Signal","Invoices clustering at ₹90k–₹99k signal deliberate threshold gaming."),
-                ("MAD as the Primary Test", f"MAD of {result['mad']:.4f} with 200 invoices is highly meaningful."),
-                ("Combine with Other Signals","Benford flags; e-way bills + address + bank linkage confirm."),
-                ("Scale of Application","GSTN screens millions of returns in minutes using this test."),
-            ], 1):
-                st.markdown(f"""<div class="mp-card-blue">
-                  <b style="color:{LIGHT_BLUE};">Learning {i}: {title}</b><br>{content}
+                <b style="color:{RED};">Data Quality Challenge</b><br><br>
+                Yes Bank stock showed: (1) extreme single-day returns flagged as outliers by Z-score,
+                (2) circuit-breaker halts creating zero-return/missing days, (3) fundamental regime change
+                in the data-generating process (pre-moratorium vs post-reconstruction).<br><br>
+                <b>The question:</b> For each anomaly — is it an Error Outlier, Genuine Extreme Event,
+                or Structural Break? Each requires different treatment.
                 </div>""", unsafe_allow_html=True)
 
-    # ── DOWNLOAD TAB ────────────────────────────────────────
-    with tab_dl:
-        st.markdown(f"""<div class="mp-card">
-        <b style="color:{GOLD};">📥 Case 1 Raw Dataset — GST Invoice Fraud (M/s Radha Textile Traders)</b><br><br>
-        The complete 200-invoice dataset used in this analysis. Includes invoice metadata,
-        amounts, GST fields, first/last digits, Benford expected probabilities, and fraud flags.
-        Use this dataset to practise Benford analysis, round-number detection, and threshold gaming analysis.
-        </div>""", unsafe_allow_html=True)
-
-        dl_info(len(DF_CASE1), len(DF_CASE1.columns),
-                "Simulated GST invoice data · Seed 101 · Fabric/textile trade · FY2023-24")
-
-        st.dataframe(DF_CASE1, use_container_width=True, hide_index=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            dl_btn(DF_CASE1.to_csv(index=False).encode("utf-8"),
-                   "case1_gst_invoice_fraud_data.csv",
-                   "⬇️  Download Case 1 CSV — GST Invoices (200 rows)")
-        with col2:
-            st.markdown(f"""<div class="mp-card-blue" style="padding:12px 16px;">
-            <b style="color:{LIGHT_BLUE};">Suggested Exercises:</b><br>
-            <span style="font-size:0.85rem;">
-            1. Run benford_analysis() on Invoice_Amount_INR — verify MAD and Chi-squared<br>
-            2. Plot first-digit distribution vs Benford expected<br>
-            3. Filter by Supplier and compare digit patterns per supplier<br>
-            4. Count round-number amounts (Last_Digit in 0,5) — what % do you find?
-            </span></div>""", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_dict_table([
-            ("Invoice_Number",    "string",      "Sequential invoice identifier (INV-001 to INV-200)"),
-            ("Invoice_Date",      "date",        "Invoice date — business days, Apr 2023 onwards"),
-            ("Supplier",         "string",      "Supplier name — 3 shell entities"),
-            ("Invoice_Amount_INR","float",       "Invoice face value in Indian Rupees (₹)"),
-            ("GST_Rate_Pct",     "int",         "GST rate applied: 5%, 12%, or 18%"),
-            ("ITC_Claimed_INR",  "float",       "Input Tax Credit claimed (Amount × GST rate)"),
-            ("First_Digit",      "int (1-9)",   "Leading digit of invoice amount"),
-            ("Last_Digit",       "int (0-9)",   "Last digit — high 0s/5s indicate fabrication"),
-            ("Benford_Expected_Pct","float",    "Expected % for this first digit under Benford's Law"),
-            ("Fraud_Flag",       "int (0/1)",   "1 = fraudulent invoice in this simulation"),
-        ])
-
-
-# ═════════════════════════════════════════════════════════════
-# CASE 2: EXPENSE FRAUD
-# ═════════════════════════════════════════════════════════════
-elif page == "💼 Case 2: Expense Report Fraud":
-    st.markdown("## 💼 Case Study 2: Corporate Expense Report Fraud")
-    st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px; text-align:left;">
-      <span class="badge">Case Study 2</span>
-      <span class="badge-red badge">FRAUD DETECTED</span>
-      <h3 style="color:{GOLD}; margin:10px 0 6px;">Fabricated Expense Reimbursement Fraud</h3>
-      <p style="color:{TXT}; margin:0;"><b>Scenario:</b> A pan-India FMCG company processes 6,000 expense claims annually.
-        Internal audit deploys Benford's Law analytics. One regional sales manager's data raises major red flags.</p>
-    </div>""", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Claims Analysed", "6,000")
-    col2.metric("Approval Threshold", "₹5,000 (Manager)")
-    col3.metric("Suspected Fraudster", "1 Regional Sales Manager")
-
-    # Retrieve pre-built data
-    clean_data = DF_CASE2[DF_CASE2["Employee"] != "SM Verma"]["Claim_Amount_INR"].values
-    fraud_data  = DF_CASE2[DF_CASE2["Employee"] == "SM Verma"]["Claim_Amount_INR"].values
-    st.session_state["case2_clean"] = clean_data
-    st.session_state["case2_fraud"] = fraud_data
-    r_clean = benford_analysis(clean_data)
-    r_fraud = benford_analysis(fraud_data)
-
-    tab1, tab2, tab3, tab4, tab_dl = st.tabs([
-        "📋 Background", "📊 Benford Analysis",
-        "🔍 Per-Employee Analysis", "📚 Learning Points", "📥 Download Raw Data"])
-
-    with tab1:
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            st.markdown(f"""<div class="mp-card">
-              <b style="color:{GOLD};">Expense Claim Policy</b><br><br>
-              ≤ ₹5,000: Self-approved · ₹5,001–₹25,000: Manager · > ₹25,000: VP Finance + docs.
-              A fraudulent employee would keep claims just below ₹5,000.
-            </div>
-            <div class="mp-card-red">
-              <b style="color:{RED};">Threshold Gaming Hypothesis</b><br><br>
-              Spike in digit 4 (₹4,000–₹4,999), under-represented digits 1–2,
-              last digits 0 and 5 (round amounts), high claim volume vs peers.
-            </div>""", unsafe_allow_html=True)
-        with col2:
-            emp_summary = DF_CASE2.groupby("Employee").agg(
-                Claims=("Claim_ID","count"),
-                Avg_Amount=("Claim_Amount_INR","mean")).reset_index()
-            emp_summary["Avg_Amount"] = emp_summary["Avg_Amount"].round(0).astype(int)
-            emp_summary = emp_summary.sort_values("Claims", ascending=False).head(10)
-            st.dataframe(emp_summary, use_container_width=True, hide_index=True)
-            st.error("🚨 SM Verma: 250 claims vs average of ~38 for peers — immediate red flag!")
-
-    with tab2:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### ✅ Team Average (Clean Data)")
-            if r_clean:
-                show_stats_panel(r_clean)
-                st.plotly_chart(chart_first_digit(r_clean, "Team Expenses — Clean"), use_container_width=True)
-        with col2:
-            st.markdown("#### 🚨 SM Verma's Claims (Fraudulent)")
-            if r_fraud:
-                show_stats_panel(r_fraud)
-                st.plotly_chart(chart_first_digit(r_fraud, "SM Verma — Suspicious"), use_container_width=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if r_clean: st.plotly_chart(chart_deviation(r_clean), use_container_width=True)
-        with col2:
-            if r_fraud: st.plotly_chart(chart_deviation(r_fraud), use_container_width=True)
-
-        st.markdown("### 🔍 Digit-4 Deep Dive: Threshold Gaming Evidence")
-        col1, col2 = st.columns(2)
-        with col1:
-            thresh_amounts = fraud_data[(fraud_data >= 4000) & (fraud_data < 5000)]
-            fig_th = go.Figure(go.Histogram(x=thresh_amounts, nbinsx=40, marker_color=RED, opacity=0.8))
-            fig_th.add_vline(x=5000, line_color=GOLD, line_width=2.5,
-                             annotation_text="₹5,000 limit", annotation_font_color=GOLD)
-            fig_th.update_layout(**PL, title=dict(text="<b>Claims ₹4,000–₹5,000</b>",
-                font=dict(color=RED, size=13)), height=300)
-            st.plotly_chart(fig_th, use_container_width=True)
-        with col2:
-            pct = len(thresh_amounts)/len(fraud_data)*100 if len(fraud_data) > 0 else 0
-            if r_fraud:
-                st.markdown(f"""<div class="mp-card-red" style="margin-top:10px;">
-                  <b style="color:{RED};">🚨 Threshold Gaming Confirmed</b><br><br>
-                  <b style="font-size:22px; color:{GOLD};">{pct:.0f}%</b> of SM Verma's claims fall ₹4k–₹4,999<br>
-                  (peer rate: ~8%) — <b>6× the peer rate</b><br><br>
-                  MAD = {r_fraud['mad']:.4f} (non-conforming) → strong grounds for HR investigation.
-                </div>""", unsafe_allow_html=True)
-
-    with tab3:
-        st.info("Per-employee Benford screening — the most powerful application for expense fraud detection.")
-        np.random.seed(303)
-        emp_rows = []
-        for name, edata in {
-            "SM Verma": np.concatenate([np.random.uniform(4200,4999,120), np.random.choice([4500,4800,4999],80), np.random.uniform(100,2000,50)]),
-            "R Patel":  10**np.random.uniform(2,3.7,42), "A Kumar": 10**np.random.uniform(2,3.6,38),
-            "P Singh":  10**np.random.uniform(2,3.8,45), "N Mehta": 10**np.random.uniform(2,3.5,33),
-            "K Sharma": np.concatenate([np.random.uniform(24000,24999,20), 10**np.random.uniform(2,3.7,21)]),
-            "S Gupta":  10**np.random.uniform(2,3.6,37), "M Iyer":  10**np.random.uniform(2,3.9,29),
-        }.items():
-            r = benford_analysis(edata)
-            if r:
-                emp_rows.append({"Employee":name, "Claims":r["n"], "MAD":f"{r['mad']:.4f}",
-                    "Chi-Sq":f"{r['chi2']:.1f}", "Verdict":r["verdict"][:25]+"...",
-                    "Risk":"🚨 HIGH" if r["mad"]>0.015 else "⚠️ MED" if r["mad"]>0.008 else "✅ LOW"})
-        st.dataframe(pd.DataFrame(emp_rows), use_container_width=True, hide_index=True)
-
-    with tab4:
-        if r_fraud:
-            for i,(title,content) in enumerate([
-                ("Per-Employee Testing","Individual fraudster invisible in aggregate but clear in isolation."),
-                ("Threshold Gaming = Digit-4 Spike","Digit-4 over-rep at ₹5k threshold confirms gaming."),
-                ("Volume is a Pre-Screen","250 vs 38 average claims is itself anomalous."),
-                ("Last-Digit Test","Round amounts (₹4,500; ₹4,800; ₹4,950) — last-digit spikes confirm fabrication."),
-                ("Human Review Non-Negotiable",f"MAD={r_fraud['mad']:.4f} is damning, but action needs due process."),
-            ], 1):
-                st.markdown(f'<div class="mp-card-blue"><b style="color:{LIGHT_BLUE};">Learning {i}: {title}</b><br>{content}</div>', unsafe_allow_html=True)
-
-    # ── DOWNLOAD TAB ────────────────────────────────────────
-    with tab_dl:
-        st.markdown(f"""<div class="mp-card">
-        <b style="color:{GOLD};">📥 Case 2 Raw Dataset — Corporate Expense Report Fraud</b><br><br>
-        Complete expense claim dataset for all employees (1,250 claims). Includes SM Verma's
-        fraudulent threshold-gaming claims alongside clean peer data. Contains fraud flags,
-        threshold proximity indicators, and first/last digit columns for Benford analysis.
-        </div>""", unsafe_allow_html=True)
-
-        dl_info(len(DF_CASE2), len(DF_CASE2.columns),
-                "Simulated expense claim data · Seed 202 · FMCG sales team · FY2023-24")
-
-        # Show summary first, then full data
-        summary = DF_CASE2.groupby("Employee").agg(
-            Claims=("Claim_ID","count"), Total_INR=("Claim_Amount_INR","sum"),
-            Avg_INR=("Claim_Amount_INR","mean"), Near_5k=("Near_5k_Threshold","sum"),
-            Fraud_Claims=("Fraud_Flag","sum")).reset_index()
-        summary["Total_INR"] = summary["Total_INR"].round(0).astype(int)
-        summary["Avg_INR"]   = summary["Avg_INR"].round(0).astype(int)
-        st.markdown(f"##### Employee Summary ({len(summary)} employees)")
-        st.dataframe(summary, use_container_width=True, hide_index=True)
-
-        st.markdown(f"##### Full Dataset (first 30 rows shown)")
-        st.dataframe(DF_CASE2.head(30), use_container_width=True, hide_index=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            dl_btn(DF_CASE2.to_csv(index=False).encode("utf-8"),
-                   "case2_expense_fraud_data.csv",
-                   "⬇️  Download Case 2 CSV — Expense Claims (1,250 rows)")
-        with col2:
-            dl_btn(summary.to_csv(index=False).encode("utf-8"),
-                   "case2_expense_fraud_summary.csv",
-                   "⬇️  Download Case 2 Summary CSV — By Employee")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_dict_table([
-            ("Claim_ID",            "string",    "Sequential claim identifier (CLM-0001 to CLM-1250)"),
-            ("Claim_Date",          "date",      "Claim submission date — business days"),
-            ("Employee",            "string",    "Employee name — SM Verma is the fraudster"),
-            ("Claim_Amount_INR",    "float",     "Claimed expense amount in Indian Rupees (₹)"),
-            ("Expense_Category",    "string",    "Travel / Meals / Accommodation / Fuel / Miscellaneous"),
-            ("First_Digit",         "int (1-9)", "Leading digit of claim amount"),
-            ("Last_Digit",          "int (0-9)", "Last digit — round amounts show 0/5 spikes"),
-            ("Benford_Expected_Pct","float",     "Expected % for this first digit under Benford's Law"),
-            ("Near_5k_Threshold",   "int (0/1)", "1 if claim falls in ₹4,000–₹4,999 (threshold gaming zone)"),
-            ("Fraud_Flag",          "int (0/1)", "1 = fraudulent claim (SM Verma), 0 = legitimate"),
-        ])
-
-
-# ═════════════════════════════════════════════════════════════
-# CASE 3: BANK STRUCTURING
-# ═════════════════════════════════════════════════════════════
-elif page == "🏛️ Case 3: Bank Structuring":
-    st.markdown("## 🏛️ Case Study 3: Bank Transaction Structuring (PMLA)")
-    st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px; text-align:left;">
-      <span class="badge">Case Study 3</span>
-      <span class="badge-red badge">AML / PMLA</span>
-      <h3 style="color:{GOLD}; margin:10px 0 6px;">Cash Deposit Structuring to Evade ₹10 Lakh Reporting</h3>
-      <p style="color:{TXT}; margin:0;"><b>Scenario:</b> A bank flags a customer who made 45 cash deposits over 60 days —
-        deliberately structured to stay below the ₹10 lakh PMLA reporting threshold.</p>
-    </div>""", unsafe_allow_html=True)
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Deposits", "45 transactions")
-    col2.metric("Period", "60 days")
-    col3.metric("Total Amount", "≈ ₹43 Lakhs")
-    col4.metric("PMLA Threshold", "₹10 Lakhs")
-
-    deposits = DF_CASE3["Amount_INR"].values
-    st.session_state["case3_data"] = deposits
-    result = benford_analysis(deposits)
-    dates_series = pd.to_datetime(DF_CASE3["Date"])
-    amounts_series = deposits
-
-    tab1, tab2, tab3, tab4, tab_dl = st.tabs([
-        "📋 PMLA Background", "📊 Benford Analysis",
-        "⏱️ Time-Pattern Analysis", "📚 Learning Points", "📥 Download Raw Data"])
-
-    with tab1:
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            st.markdown(f"""<div class="mp-card">
-              <b style="color:{GOLD};">PMLA Reporting Obligations (India)</b><br><br>
-              Banks file <b>CTR</b> for cash ≥ ₹10L in a single day. They file <b>STR to FIU-IND</b>
-              when structuring is suspected. Structuring is itself a criminal offence (PMLA Sec 3).
-              Penalty: imprisonment 3–7 years + attachment of funds.
-            </div>
-            <div class="mp-card-red">
-              <b style="color:{RED};">Structuring ("Smurfing") Pattern</b><br><br>
-              Multiple deposits each just below threshold · spread across multiple days ·
-              sometimes multiple branches. Benford signature: <b>extreme digit-9 over-representation</b>
-              (₹90k–₹99,999 when threshold is ₹1L).
-            </div>""", unsafe_allow_html=True)
-        with col2:
-            st.markdown("**Deposit History (₹):**")
-            st.dataframe(DF_CASE3[["Date","Amount_INR","Amount_Lakhs","Below_10L_Threshold"]].head(15),
-                         use_container_width=True, hide_index=True)
-            st.error("⚠️ Every single deposit is below ₹10 lakh — none trigger CTR individually!")
-
-    with tab2:
-        if result:
-            show_stats_panel(result)
-            col1, col2 = st.columns(2)
-            with col1: st.plotly_chart(chart_first_digit(result, "Cash Deposit Structuring Analysis"), use_container_width=True)
-            with col2: st.plotly_chart(chart_deviation(result), use_container_width=True)
-            show_digit_table(result)
-            col1, col2 = st.columns(2)
-            with col1: st.plotly_chart(chart_log_histogram(deposits), use_container_width=True)
             with col2:
-                fig_d = go.Figure(go.Histogram(x=deposits/100000, nbinsx=30, marker_color=RED, opacity=0.8))
-                fig_d.add_vline(x=10, line_color=GOLD, line_width=2.5,
-                    annotation_text="₹10L PMLA threshold", annotation_font_color=GOLD)
-                fig_d.update_layout(**PL, title=dict(text="<b>All Deposits Cluster Just Below ₹10L</b>",
-                    font=dict(color=RED, size=13)), height=320)
-                st.plotly_chart(fig_d, use_container_width=True)
-            st.markdown(f"""<div class="verdict-bad">
-              🚨 STRUCTURING CONFIRMED — DIGIT-9: {result['obs_p'][9]*100:.1f}% (Expected: 4.6%)
-              | MAD = {result['mad']:.4f} | File STR with FIU-IND
+                # Simulate Yes Bank daily returns 2019-2020
+                rng_yb = np.random.default_rng(111)
+                n_yb = 300
+                dt_yb = pd.bdate_range("2019-01-02", periods=n_yb)
+                # Normal period, then distress, then moratorium shock
+                rets_yb = np.concatenate([
+                    rng_yb.normal(0.0, 0.025, 180),      # Normal 2019
+                    rng_yb.normal(-0.015, 0.055, 80),    # Distress late 2019
+                    np.array([-0.32, -0.18, -0.25, 0.20, -0.15]),  # Moratorium shocks
+                    rng_yb.normal(-0.005, 0.035, 35),    # Post-reconstruction
+                ])
+                rets_yb = rets_yb[:n_yb]
+                # Inject some zero-return days (circuit breaker halts)
+                for ci in [182, 184, 186, 190]: rets_yb[ci] = 0.0
+
+                s_yb = pd.Series(rets_yb*100, index=dt_yb)
+                zs_yb = np.abs((s_yb - s_yb.mean()) / s_yb.std())
+
+                st.markdown(f"""<div class="mp-card-blue">
+                <b style="color:{LIGHT_BLUE};">Key Return Statistics</b><br><br>
+                Mean daily return: <b style="color:{GOLD};">{s_yb.mean():.2f}%</b><br>
+                Std deviation: <b style="color:{GOLD};">{s_yb.std():.2f}%</b><br>
+                Min (worst day): <b style="color:{RED};">{s_yb.min():.1f}%</b><br>
+                Max (best day): <b style="color:{GREEN};">{s_yb.max():.1f}%</b><br>
+                Days |Z| > 3: <b style="color:{GOLD};">{(zs_yb > 3).sum()}</b><br>
+                Zero-return days: <b style="color:{GOLD};">{(s_yb == 0).sum()}</b>
+                </div>""", unsafe_allow_html=True)
+
+            shdr("📊", "Outlier Detection — Three-Method Analysis")
+            # Z-Score, MAD, and IQR
+            med_yb = s_yb.median()
+            mad_yb = np.median(np.abs(s_yb - med_yb))
+            mod_z_yb = 0.6745 * np.abs(s_yb - med_yb) / (mad_yb + 1e-10)
+            Q1_yb, Q3_yb = s_yb.quantile(0.25), s_yb.quantile(0.75)
+            IQR_yb = Q3_yb - Q1_yb
+            out_iqr_yb = s_yb[(s_yb < Q1_yb - 3*IQR_yb) | (s_yb > Q3_yb + 3*IQR_yb)]
+
+            fig_yb = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                subplot_titles=["Yes Bank Daily Returns (%)", "Modified Z-Score (MAD method)"],
+                row_heights=[0.65, 0.35])
+            fig_yb.add_trace(go.Bar(x=s_yb.index, y=s_yb,
+                marker_color=[RED if v < 0 else GREEN for v in s_yb],
+                name="Daily Return"), row=1, col=1)
+            fig_yb.add_trace(go.Scatter(x=s_yb.index, y=mod_z_yb,
+                mode="lines", line=dict(color=LIGHT_BLUE, width=1.5),
+                name="|Modified Z|"), row=2, col=1)
+            fig_yb.add_hline(y=3.5, line_dash="dash", line_color=RED,
+                annotation_text="MAD threshold 3.5", row=2, col=1)
+            # Mark regime change
+            fig_yb.add_vrect(x0="2020-03-05", x1="2020-03-20",
+                fillcolor="rgba(255,215,0,0.09)", line_color="rgba(255,215,0,0.4)",
+                annotation_text="Moratorium", annotation_position="top left", row=1, col=1)
+            fig_yb.update_layout(**PL, height=440, showlegend=False,
+                title=dict(text="<b>Yes Bank — Return Series with Outlier Detection</b>",
+                           font=dict(color=GOLD, size=13)))
+            st.plotly_chart(fig_yb, use_container_width=True)
+
+            shdr("🎯", "Three-Way Classification Framework")
+            for event, date, ret, zsc, otype, treatment, clr in [
+                ("Moratorium announcement", "5 Mar 2020", "−32%", "12.4",
+                 "Genuine Extreme Event", "RETAIN for VaR; add regime dummy D_moratorium=1 in regression", GREEN),
+                ("AT-1 bond write-down shock", "6 Mar 2020", "−18%", "7.1",
+                 "Genuine Extreme Event", "RETAIN for stress testing; document in model assumptions", GREEN),
+                ("Circuit breaker halt (zero return)", "10 Mar 2020", "0.0%", "0.8",
+                 "Invalid Value (MCAR missing)", "Replace with NaN → exclude from return calculations", GOLD),
+                ("Pre-2020 data feed error", "Various", "±0.001%", "3.9",
+                 "Error Outlier", "Verify against exchange data; if confirmed error → set NaN, impute", RED),
+            ]:
+                st.markdown(f"""
+                <div class="mp-card" style="border-left:4px solid {clr};margin-bottom:8px;">
+                  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                    <div style="min-width:200px;font-weight:700;color:{TXT};">{event}</div>
+                    <div style="min-width:80px;font-size:0.85rem;color:{MUTED};">{date}</div>
+                    <div style="min-width:60px;font-weight:700;color:{clr};">{ret} (Z={zsc})</div>
+                    <div style="flex:1;font-size:0.83rem;">
+                      <span style="color:{clr};font-weight:700;">{otype}</span><br>
+                      <span style="color:{TXT};">{treatment}</span>
+                    </div>
+                  </div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Data Quality Lessons from Yes Bank</b><br><br>
+            1. <b>Regime splitting is necessary:</b> Pre-moratorium and post-reconstruction data have
+               different distributional properties. Running a single GARCH model across the entire period
+               produces biased volatility estimates.<br>
+            2. <b>Circuit breaker halts ≠ zero returns:</b> A zero return on a circuit-breaker day is
+               an invalid value (MCAR) — the stock was not actually unchanged. Set to NaN, exclude from
+               return calculations.<br>
+            3. <b>AT-1 bond write-down is not a data error:</b> It is a genuine regulatory event.
+               Credit models must include it as a real loss observation.
             </div>""", unsafe_allow_html=True)
 
-    with tab3:
-        col1, col2 = st.columns(2)
-        with col1:
-            fig_ts = go.Figure()
-            fig_ts.add_trace(go.Scatter(x=dates_series, y=amounts_series/100000,
-                mode="markers+lines", marker=dict(color=RED, size=8), line=dict(color=MID_BLUE, width=1.5)))
-            fig_ts.add_hline(y=10, line_color=GOLD, line_width=2, line_dash="dash",
-                annotation_text="₹10L threshold", annotation_font_color=GOLD)
-            fig_ts.update_layout(**PL, title=dict(text="<b>Daily Cash Deposits Over 60 Days</b>",
-                font=dict(color=GOLD, size=13)), height=320)
-            st.plotly_chart(fig_ts, use_container_width=True)
-        with col2:
-            fig_cum = go.Figure(go.Scatter(x=dates_series, y=np.cumsum(amounts_series)/100000,
-                fill="tozeroy", fillcolor="rgba(0,77,128,0.27)", line=dict(color=DARK_BLUE, width=2)))
-            fig_cum.update_layout(**PL, title=dict(text="<b>Cumulative Deposits Over 60 Days</b>",
-                font=dict(color=GOLD, size=13)), height=320)
-            st.plotly_chart(fig_cum, use_container_width=True)
-        total = sum(amounts_series)
-        st.markdown(f"""<div class="mp-card-red">
-          <b style="color:{RED};">Aggregate Picture Reveals the Scheme</b><br><br>
-          45 deposits × average ₹{total/len(amounts_series)/100000:.1f}L = Total ₹{total/100000:.1f}L in 60 days.
-          0 individual deposits triggered a CTR. Velocity: 0.75 deposits/day vs peer average of 2–3/month.
+        with sub4b:
+            shdr("📥", "Case 4 Raw Data — Yes Bank Crisis Return Series (2019–2020)")
+            st.markdown(f"""<div class="mp-card">
+            300-day daily return series for Yes Bank (simulated, calibrated to actual crisis timeline).
+            Includes regime flags, outlier classifications, circuit breaker indicators,
+            and Z-scores for practising the three-way outlier classification framework.
+            </div>""", unsafe_allow_html=True)
+
+            # Build downloadable dataset
+            rng_yb2 = np.random.default_rng(111)
+            n_yb2 = 300
+            dt_yb2 = pd.bdate_range("2019-01-02", periods=n_yb2)
+            rets_yb2 = np.concatenate([
+                rng_yb2.normal(0.0, 0.025, 180),
+                rng_yb2.normal(-0.015, 0.055, 80),
+                np.array([-0.32, -0.18, -0.25, 0.20, -0.15]),
+                rng_yb2.normal(-0.005, 0.035, 35),
+            ])[:n_yb2]
+            for ci in [182, 184, 186, 190]: rets_yb2[ci] = 0.0
+            price_yb2 = 393 * np.cumprod(1 + rets_yb2)
+            zs_yb2 = np.abs((rets_yb2 - rets_yb2.mean()) / (rets_yb2.std() + 1e-10))
+            med2 = np.median(rets_yb2)
+            mad2 = np.median(np.abs(rets_yb2 - med2))
+            mod_z2 = 0.6745 * np.abs(rets_yb2 - med2) / (mad2 + 1e-10)
+
+            regime = ["Pre-Distress" if i < 180 else ("Distress" if i < 255 else "Post-Reconstruction")
+                      for i in range(n_yb2)]
+            circuit = [1 if rets_yb2[i] == 0.0 else 0 for i in range(n_yb2)]
+            outlier_type = []
+            for i in range(n_yb2):
+                if circuit[i]: outlier_type.append("Circuit_Breaker_MCAR")
+                elif mod_z2[i] > 3.5 and i >= 255: outlier_type.append("Genuine_Extreme_Event")
+                elif mod_z2[i] > 3.5: outlier_type.append("Genuine_Extreme_Event")
+                elif mod_z2[i] > 5 and i < 180: outlier_type.append("Possible_Error_Outlier")
+                else: outlier_type.append("Normal")
+
+            df_cs4 = pd.DataFrame({
+                "Date":                 dt_yb2.strftime("%Y-%m-%d"),
+                "YES_Bank_Close_INR":   np.round(price_yb2, 2),
+                "Daily_Return_Pct":     np.round(rets_yb2 * 100, 4),
+                "Z_Score":              np.round(zs_yb2, 4),
+                "Modified_Z_Score_MAD": np.round(mod_z2, 4),
+                "Outlier_Flag_Z3":      (zs_yb2 > 3).astype(int),
+                "Outlier_Flag_MAD35":   (mod_z2 > 3.5).astype(int),
+                "Circuit_Breaker_Flag": circuit,
+                "Regime":               regime,
+                "Outlier_Classification": outlier_type,
+            })
+
+            mrow([{"val": str(len(df_cs4)), "lbl": "Trading Days"},
+                  {"val": str((df_cs4.Outlier_Flag_MAD35 == 1).sum()), "lbl": "MAD Outliers"},
+                  {"val": str((df_cs4.Circuit_Breaker_Flag == 1).sum()), "lbl": "Circuit Breaker Days"},
+                  {"val": "3", "lbl": "Regimes"}])
+
+            st.dataframe(df_cs4.head(25), use_container_width=True, hide_index=True)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                dl_button(df_cs4.to_csv(index=False).encode("utf-8"),
+                    "case4_yes_bank_crisis_2020.csv",
+                    "⬇️  Download Case 4 CSV — Yes Bank Returns (300 days)")
+            with c2:
+                st.markdown(f"""<div class="mp-card-blue" style="padding:12px 16px;">
+                <b style="color:{LIGHT_BLUE};">Suggested Exercises:</b><br>
+                <span style="font-size:0.85rem;">
+                1. Apply Z-Score, MAD, and IQR methods — compare flags on the same dataset<br>
+                2. Split by Regime column and compute volatility per regime<br>
+                3. Set Circuit_Breaker_Flag=1 rows to NaN and recalculate return statistics<br>
+                4. Build a GARCH(1,1) model with a regime dummy for the moratorium period
+                </span></div>""", unsafe_allow_html=True)
+
+            st.markdown(f"<br>", unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame({
+                "Column": ["Date","YES_Bank_Close_INR","Daily_Return_Pct","Z_Score",
+                           "Modified_Z_Score_MAD","Outlier_Flag_Z3","Outlier_Flag_MAD35",
+                           "Circuit_Breaker_Flag","Regime","Outlier_Classification"],
+                "Type": ["date","float","float","float","float","int","int","int","string","string"],
+                "Description": [
+                    "Trading date (business days, 2019-2020)",
+                    "Yes Bank closing price in ₹ (simulated, calibrated to crisis timeline)",
+                    "Daily percentage return",
+                    "Standard Z-score of daily return",
+                    "Modified Z-Score using Median Absolute Deviation (more robust)",
+                    "1 if |Z| > 3 (standard outlier flag)",
+                    "1 if Modified Z > 3.5 (MAD-based robust outlier flag)",
+                    "1 if return = 0 due to circuit breaker halt (MCAR invalid value)",
+                    "Pre-Distress / Distress / Post-Reconstruction regime label",
+                    "Error_Outlier / Genuine_Extreme_Event / Circuit_Breaker_MCAR / Normal",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+    # ══════════════════════════════════════════════════════════
+    with tab5:
+        st.markdown(f"""<div class="hero-wrap" style="padding:20px 28px;">
+        <span class="badge">Case Study 5</span>
+        <span class="badge badge-red">INVALID VALUES · STALE NAV</span>
+        <h3 style="color:{GOLD};margin:10px 0 6px;font-family:'Playfair Display',serif;">
+          Franklin Templeton MF Wind-Up — Stale NAV &amp; Invalid Value Detection</h3>
+        <p style="color:{TXT};margin:0;">April 2020: Franklin Templeton India abruptly wound up six debt mutual
+          fund schemes, freezing ₹25,000 Cr of investor assets. In the weeks before the wind-up,
+          NAVs showed classic stale-price patterns — rolling unchanged values — a textbook
+          invalid value scenario that should have triggered data quality alerts.</p>
         </div>""", unsafe_allow_html=True)
 
-    with tab4:
-        for i,(title,content) in enumerate([
-            ("Structuring = Digit-9 Signature","₹90k–₹9,99,999 → digit-9 spike reveals exact threshold gaming."),
-            ("Aggregate Matters","No single CTR triggered, but ₹43L in 60 days is itself suspicious."),
-            ("Benford + Velocity","Which digit + how often = complete investigator picture."),
-            ("Legal Obligation: STR Filing","PMLA requires STR even when no single transaction crosses threshold."),
-            ("FIU-IND Integration","Indian banks integrate transaction monitoring with FIU-IND for STR filing."),
-        ], 1):
-            st.markdown(f'<div class="mp-card-blue"><b style="color:{LIGHT_BLUE};">Learning {i}: {title}</b><br>{content}</div>', unsafe_allow_html=True)
+        sub5a, sub5b = st.tabs(["📊 Analysis", "📥 Download Raw Data"])
 
-    # ── DOWNLOAD TAB ────────────────────────────────────────
-    with tab_dl:
-        st.markdown(f"""<div class="mp-card">
-        <b style="color:{GOLD};">📥 Case 3 Raw Dataset — Bank Transaction Structuring (PMLA)</b><br><br>
-        Complete 45-transaction cash deposit dataset used in the structuring analysis.
-        Includes transaction metadata, amounts, PMLA threshold flags, Benford digits,
-        and cumulative running totals. Use this to practise digit analysis, velocity
-        testing, and STR justification documentation.
-        </div>""", unsafe_allow_html=True)
-
-        dl_info(len(DF_CASE3), len(DF_CASE3.columns),
-                "Simulated bank deposit data · Seed 404 · 60-day window · Jan–Feb 2024")
-
-        st.dataframe(DF_CASE3, use_container_width=True, hide_index=True)
-
-        if result:
+        with sub5a:
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Digit-9 Frequency", f"{result['obs_p'][9]*100:.1f}%", delta="Expected 4.6%", delta_color="inverse")
-            c2.metric("MAD", f"{result['mad']:.4f}", delta="Threshold 0.015", delta_color="inverse")
-            c3.metric("Below ₹10L", f"{(DF_CASE3['Below_10L_Threshold']==1).sum()}/45", delta="All deposits", delta_color="off")
-            c4.metric("CTR Triggered", "0", delta="Structuring confirmed", delta_color="off")
+            c1.metric("Wind-Up Date", "23 Apr 2020")
+            c2.metric("Schemes Wound Up", "6")
+            c3.metric("Assets Frozen", "₹25,000 Cr")
+            c4.metric("Investors Affected", "~300,000")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            dl_btn(DF_CASE3.to_csv(index=False).encode("utf-8"),
-                   "case3_bank_structuring_pmla_data.csv",
-                   "⬇️  Download Case 3 CSV — Bank Deposits (45 rows)")
-        with col2:
-            st.markdown(f"""<div class="mp-card-blue" style="padding:12px 16px;">
-            <b style="color:{LIGHT_BLUE};">Suggested Exercises:</b><br>
-            <span style="font-size:0.85rem;">
-            1. Run benford_analysis() on Amount_INR — verify digit-9 Z-score<br>
-            2. Plot amount distribution vs ₹10L threshold line<br>
-            3. Compute velocity: deposits per week in this 60-day window<br>
-            4. Draft an STR narrative using the statistical evidence from this dataset
-            </span></div>""", unsafe_allow_html=True)
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                st.markdown(f"""<div class="mp-card">
+                <b style="color:{GOLD};">What Happened</b><br><br>
+                Franklin Templeton India's six debt schemes held illiquid credit paper —
+                bonds from companies like Vodafone Idea, DHFL, Yes Bank, and Essel Group.
+                As COVID-19 caused market stress in March-April 2020, the underlying bonds
+                became untradeable. The fund house was unable to value them reliably.<br><br>
+                <b>The NAV problem:</b> When underlying bonds are illiquid, fund valuation
+                requires mark-to-model (not mark-to-market). NAVs appeared to drift or
+                remain unchanged for multiple days — a classic stale price pattern —
+                before the fund house suspended redemptions entirely.
+                </div>
+                <div class="mp-card-red">
+                <b style="color:{RED};">Data Quality Signals That Preceded the Wind-Up</b><br><br>
+                <ul style="margin:8px 0; padding-left:20px;">
+                  <li><b>Stale NAV Detection:</b> NAV unchanged for 3+ consecutive days in
+                    normally volatile credit funds → rolling std-dev ≈ 0 alert</li>
+                  <li><b>NAV-to-Benchmark Divergence:</b> While similar funds moved with credit
+                    markets, FT schemes showed anomalous stability</li>
+                  <li><b>Redemption-to-AUM Ratio:</b> Spike in redemption requests as
+                    sophisticated investors exited early</li>
+                  <li><b>Portfolio Liquidity Score:</b> Increasing % of bonds with no secondary
+                    market trades — a business-rule invalid value trigger</li>
+                </ul>
+                </div>""", unsafe_allow_html=True)
 
-        col_dict_table([
-            ("Transaction_ID",        "string",    "Sequential ID (TXN-001 to TXN-045)"),
-            ("Date",                  "date",      "Deposit date — daily, Jan–Feb 2024"),
-            ("Transaction_Type",      "string",    "Cash Deposit (all transactions)"),
-            ("Amount_INR",            "float",     "Deposit amount in Indian Rupees (₹)"),
-            ("Amount_Lakhs",          "float",     "Deposit amount in ₹ Lakhs (Amount_INR / 100,000)"),
-            ("Below_10L_Threshold",   "int (0/1)", "1 if deposit < ₹10L (all are 1 in this dataset)"),
-            ("First_Digit",           "int (1-9)", "Leading digit — extreme digit-9 over-representation"),
-            ("Last_Digit",            "int (0-9)", "Last digit of deposit amount"),
-            ("Benford_Expected_Pct",  "float",     "Benford's expected % for this first digit"),
-            ("CTR_Triggered",         "int (0/1)", "Cash Transaction Report — 0 for all (structuring intent)"),
-            ("Structuring_Flag",      "int (0/1)", "1 = this transaction is part of structuring scheme"),
-            ("Cumulative_Amount_INR", "float",     "Running cumulative total — shows ₹43L aggregate"),
-        ])
+            with col2:
+                # Simulate 6 scheme NAVs — some going stale
+                rng_ft = np.random.default_rng(222)
+                n_ft = 90
+                dt_ft = pd.bdate_range("2020-01-15", periods=n_ft)
 
-    # ── Cross-case combined download ───────────────────────
+                # Normal scheme and distressed scheme
+                nav_normal = 30 + np.cumsum(rng_ft.normal(0.02, 0.15, n_ft))
+                nav_distressed = 28 + np.cumsum(rng_ft.normal(0.01, 0.12, 60).tolist() +
+                                                 [0.0]*30)  # stale last 30 days
+                nav_distressed = np.array(nav_distressed[:n_ft])
+
+                st.markdown(f"""<div class="mp-card-blue">
+                <b style="color:{LIGHT_BLUE};">Stale NAV Detection Summary</b><br><br>
+                FT Ultra Short Bond Fund NAV:<br>
+                • Consecutive unchanged days (last 30): <b style="color:{RED};">30 days</b><br>
+                • Rolling 5-day std dev: <b style="color:{RED};">0.000</b><br>
+                • Normal fund avg std dev: <b style="color:{GREEN};">0.15</b><br><br>
+                <b>Stale price rule triggered:</b> Price unchanged for 5+ consecutive trading
+                days in a normally volatile credit fund → flag as invalid / data quality issue.
+                </div>""", unsafe_allow_html=True)
+
+            shdr("📊", "NAV Series — Normal vs Stale-Price Detection")
+            fig_ft = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                subplot_titles=["NAV (₹) — Normal Fund vs FT Distressed Scheme",
+                                 "Rolling 5-Day Std Dev of Daily Returns"],
+                row_heights=[0.6, 0.4])
+            fig_ft.add_trace(go.Scatter(x=dt_ft, y=nav_normal,
+                name="Normal Credit Fund", line=dict(color=GREEN, width=2)), row=1, col=1)
+            fig_ft.add_trace(go.Scatter(x=dt_ft, y=nav_distressed,
+                name="FT Distressed Scheme", line=dict(color=RED, width=2)), row=1, col=1)
+
+            # Rolling std of returns
+            s_normal = pd.Series(nav_normal, index=dt_ft).pct_change().dropna()
+            s_dist   = pd.Series(nav_distressed, index=dt_ft).pct_change().dropna()
+            roll_std_n = s_normal.rolling(5).std() * 100
+            roll_std_d = s_dist.rolling(5).std() * 100
+            fig_ft.add_trace(go.Scatter(x=roll_std_n.index, y=roll_std_n,
+                name="Normal fund std", line=dict(color=GREEN, width=1.5)), row=2, col=1)
+            fig_ft.add_trace(go.Scatter(x=roll_std_d.index, y=roll_std_d,
+                name="FT scheme std", line=dict(color=RED, width=1.5)), row=2, col=1)
+            fig_ft.add_hline(y=0.02, line_dash="dash", line_color=GOLD,
+                annotation_text="Stale alert threshold", row=2, col=1)
+            fig_ft.add_vrect(x0=str(dt_ft[60]), x1=str(dt_ft[-1]),
+                fillcolor="rgba(220,53,69,0.09)", line_color="rgba(220,53,69,0.33)",
+                annotation_text="Stale NAV period", annotation_position="top left", row=1, col=1)
+            fig_ft.update_layout(**PL, height=440, showlegend=True,
+                title=dict(text="<b>Franklin Templeton — NAV Stale Price Detection</b>",
+                           font=dict(color=GOLD, size=13)),
+                legend=dict(orientation="h", y=1.02, font=dict(color=TXT)))
+            st.plotly_chart(fig_ft, use_container_width=True)
+
+            shdr("🔬", "Invalid Value Taxonomy — This Case")
+            for inv_type, detection, treatment, severity, clr in [
+                ("Stale NAV (zero-change for 5+ days)",
+                 "Rolling 5-day std-dev ≈ 0; price unchanged flag",
+                 "Flag as stale → mark-to-model revaluation or set to NaN",
+                 "HIGH — VaR and performance attribution are completely wrong",
+                 RED),
+                ("NAV-to-Benchmark Divergence > 3σ",
+                 "Cross-sectional z-score vs peer fund NAV changes",
+                 "Flag for valuation committee review; trigger independent audit",
+                 "HIGH — signals possible pricing manipulation or model error",
+                 RED),
+                ("Portfolio Liquidity Score = 0 on active trading day",
+                 "Business rule: % of bonds with ZERO secondary market trades",
+                 "Flag as domain invalid; escalate to risk committee",
+                 "MEDIUM — indicates fund cannot meet redemptions at stated NAV",
+                 GOLD),
+                ("Redemption-to-AUM Ratio > 5× 30-day average",
+                 "Rolling ratio comparison; peer benchmarking",
+                 "Flag for stress-test; check if concentrated outflow",
+                 "MEDIUM — early warning of liquidity stress",
+                 GOLD),
+            ]:
+                st.markdown(f"""
+                <div class="mp-card" style="border-left:4px solid {clr};margin-bottom:8px;padding:12px 16px;">
+                  <div style="font-weight:700;color:{clr};margin-bottom:4px;">{inv_type}</div>
+                  <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.83rem;">
+                    <div><span style="color:{MUTED};">Detection:</span> <span style="color:{TXT};">{detection}</span></div>
+                    <div><span style="color:{MUTED};">Treatment:</span> <span style="color:{TXT};">{treatment}</span></div>
+                  </div>
+                  <div style="margin-top:4px;font-size:0.82rem;color:{clr};">⚡ Severity: {severity}</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown(f"""<div class="mp-card-blue">
+            <b style="color:{LIGHT_BLUE};">Regulatory Outcome &amp; Data Quality Lesson</b><br><br>
+            SEBI issued show-cause notices to Franklin Templeton India. The Supreme Court of India
+            ruled that unitholders must vote on the winding-up. Final payouts completed by 2023.<br><br>
+            <b>Key data quality lesson:</b> Stale NAV detection is a mandatory data quality gate
+            for any fund analytics system. A rolling std-dev ≈ 0 alert for 3+ consecutive days in
+            a credit fund should automatically trigger:<br>
+            (1) Valuation committee escalation · (2) Independent bond pricing verification ·
+            (3) Risk committee notification · (4) Enhanced liquidity monitoring
+            </div>""", unsafe_allow_html=True)
+
+        with sub5b:
+            shdr("📥", "Case 5 Raw Data — Franklin Templeton NAV Series (Jan–Apr 2020)")
+            st.markdown(f"""<div class="mp-card">
+            90-day daily NAV dataset for six simulated mutual fund schemes — one normal credit fund and
+            five with varying degrees of stale-NAV behaviour calibrated to the Franklin Templeton episode.
+            Includes rolling std-dev flags, stale indicators, liquidity scores, and peer comparison columns.
+            </div>""", unsafe_allow_html=True)
+
+            # Build rich downloadable dataset for 6 schemes
+            rng_ft2 = np.random.default_rng(222)
+            n_ft2 = 90
+            dt_ft2 = pd.bdate_range("2020-01-15", periods=n_ft2)
+            scheme_configs = [
+                ("FT_Ultra_Short_Bond",    28.0, 0.01, 0.12, 60),   # stale from day 60
+                ("FT_Low_Duration",        18.5, 0.01, 0.10, 55),
+                ("FT_Short_Term_Income",   22.0, 0.02, 0.14, 65),
+                ("FT_Credit_Risk",         12.0, 0.00, 0.18, 50),
+                ("FT_Dynamic_Accrual",     15.5, 0.01, 0.12, 58),
+                ("Normal_Credit_Peer",     30.0, 0.03, 0.15, 999),   # no stale
+            ]
+
+            all_rows = []
+            for scheme, base_nav, drift, vol, stale_from in scheme_configs:
+                navs = [base_nav]
+                for i in range(1, n_ft2):
+                    if i >= stale_from:
+                        navs.append(navs[-1])   # stale: no change
+                    else:
+                        navs.append(navs[-1] * (1 + rng_ft2.normal(drift/252, vol/np.sqrt(252))))
+                navs = np.array(navs)
+                daily_ret = np.concatenate([[0], np.diff(navs)/navs[:-1]])
+                roll_std  = pd.Series(daily_ret).rolling(5).std().fillna(0).values
+                stale_flag = (roll_std < 0.0002).astype(int)
+                liq_score = np.where(np.arange(n_ft2) >= stale_from,
+                                     np.linspace(100, 0, n_ft2)[np.arange(n_ft2) - max(0, stale_from - n_ft2)],
+                                     rng_ft2.uniform(70, 100, n_ft2))
+                liq_score = np.clip(liq_score, 0, 100)
+
+                for i in range(n_ft2):
+                    all_rows.append({
+                        "Date":              dt_ft2[i].strftime("%Y-%m-%d"),
+                        "Scheme":            scheme,
+                        "NAV_INR":           round(navs[i], 4),
+                        "Daily_Return_Pct":  round(daily_ret[i]*100, 5),
+                        "Rolling_5D_StdDev": round(roll_std[i]*100, 6),
+                        "Stale_NAV_Flag":    int(stale_flag[i]),
+                        "Liquidity_Score":   round(float(liq_score[i]), 1),
+                        "Days_Unchanged":    sum(1 for j in range(max(0,i-9),i+1)
+                                                 if navs[j]==navs[max(0,j-1)]),
+                        "Stale_Category":    "STALE" if stale_flag[i] and i>4 else "VALID",
+                    })
+
+            df_cs5 = pd.DataFrame(all_rows)
+
+            mrow([{"val": str(len(df_cs5)), "lbl": "Total Rows"},
+                  {"val": "6", "lbl": "Fund Schemes"},
+                  {"val": str(n_ft2), "lbl": "Trading Days"},
+                  {"val": str((df_cs5.Stale_NAV_Flag == 1).sum()), "lbl": "Stale NAV Flags"}])
+
+            st.dataframe(df_cs5.head(30), use_container_width=True, hide_index=True)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                dl_button(df_cs5.to_csv(index=False).encode("utf-8"),
+                    "case5_franklin_templeton_stale_nav_2020.csv",
+                    "⬇️  Download Case 5 CSV — FT NAV Data (540 rows)")
+            with c2:
+                st.markdown(f"""<div class="mp-card-blue" style="padding:12px 16px;">
+                <b style="color:{LIGHT_BLUE};">Suggested Exercises:</b><br>
+                <span style="font-size:0.85rem;">
+                1. Filter Stale_NAV_Flag=1 rows — what % of each scheme is stale?<br>
+                2. Compare Rolling_5D_StdDev across schemes — identify when stale periods begin<br>
+                3. Build a stale-detection alert: flag any scheme where std-dev drops below 0.02% for 5+ days<br>
+                4. Compute NAV-to-peer deviation: z-score of each scheme's daily return vs Normal_Credit_Peer
+                </span></div>""", unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame({
+                "Column": ["Date","Scheme","NAV_INR","Daily_Return_Pct","Rolling_5D_StdDev",
+                           "Stale_NAV_Flag","Liquidity_Score","Days_Unchanged","Stale_Category"],
+                "Type": ["date","string","float","float","float","int","float","int","string"],
+                "Description": [
+                    "Trading date (business days, Jan–Apr 2020)",
+                    "Fund scheme name (6 schemes including one normal peer)",
+                    "Net Asset Value in ₹ per unit",
+                    "Daily return as percentage",
+                    "Rolling 5-day standard deviation of returns (≈0 indicates stale NAV)",
+                    "1 if Rolling_5D_StdDev < 0.02% for 3+ days (stale alert triggered)",
+                    "Liquidity score 0–100 (0 = fully illiquid, 100 = fully tradeable)",
+                    "Number of consecutive days the NAV has been unchanged",
+                    "STALE = invalid stale NAV detected | VALID = normal pricing",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+    # ── Combined download of all five ──────────────────────
     st.markdown("---")
-    st.markdown(f"""<div class="mp-card" style="margin-top:8px;">
-    <b style="color:{GOLD};">📦 Download All Three Case Study Datasets</b><br>
-    Get all three datasets in one ZIP archive for offline analysis, classroom exercises,
-    or student distribution.
+    shdr("📦","Download All Case Study Datasets")
+    st.markdown(f"""<div class="mp-card">
+    Download each dataset individually as CSV, or grab all five in a single ZIP archive
+    — no additional packages required.
     </div>""", unsafe_allow_html=True)
 
-    readme_txt = (
-        "Mountain Path – World of Finance | Benford's Law Fraud Analytics\n"
-        "Prof. V. Ravichandran | themountainpathacademy.com\n\n"
-        "Files:\n"
-        "  case1_gst_invoice_fraud_data.csv    -- 200 rows: GST invoice fraud (Seed 101)\n"
-        "  case2_expense_fraud_data.csv         -- 1,250 rows: expense threshold gaming (Seed 202)\n"
-        "  case3_bank_structuring_pmla_data.csv -- 45 rows: PMLA cash deposit structuring (Seed 404)\n\n"
-        "All data is simulated and calibrated to realistic Indian market scenarios.\n"
-        "Reference: Nigrini (2012) Benford's Law | ACFE 2024 Report to the Nations\n"
-    )
-    zip_buf = zip_three(
-        DF_CASE1, "case1_gst_invoice_fraud_data.csv",
-        DF_CASE2, "case2_expense_fraud_data.csv",
-        DF_CASE3, "case3_bank_structuring_pmla_data.csv",
-        readme=readme_txt,
-    )
-    c1, c2, c3 = st.columns(3)
+    import io, zipfile
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("case1_nifty50_demonetisation_2016.csv",     df_cs1.to_csv(index=False))
+        zf.writestr("case2_ilfs_quarterly_mnar_panel.csv",       df_cs2.to_csv(index=False))
+        zf.writestr("case3_nse_intraday_feed_outage_2024.csv",   df_cs3.to_csv(index=False))
+        zf.writestr("case4_yes_bank_crisis_2020.csv",            df_cs4.to_csv(index=False))
+        zf.writestr("case5_franklin_templeton_stale_nav_2020.csv", df_cs5.to_csv(index=False))
+        zf.writestr("README.txt",
+            "Mountain Path - World of Finance\n"
+            "Case Study Datasets — Financial Data Wrangling & Cleaning\n"
+            "Prof. V. Ravichandran | themountainpathacademy.com\n\n"
+            "Files:\n"
+            "  case1_nifty50_demonetisation_2016.csv       -- 252 daily rows · Outlier: Genuine Extreme Event\n"
+            "  case2_ilfs_quarterly_mnar_panel.csv         -- 8 quarterly rows · Missing Data: MNAR\n"
+            "  case3_nse_intraday_feed_outage_2024.csv     -- 375 one-minute rows · Missing Data: MCAR\n"
+            "  case4_yes_bank_crisis_2020.csv              -- 300 daily rows · Outlier Classification Framework\n"
+            "  case5_franklin_templeton_stale_nav_2020.csv -- 540 rows · Invalid Values: Stale NAV\n"
+        )
+    zip_buf.seek(0)
+
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
-        dl_btn(DF_CASE1.to_csv(index=False).encode("utf-8"),
-               "case1_gst_invoice_fraud_data.csv", "⬇️  Case 1 CSV")
+        dl_button(df_cs1.to_csv(index=False).encode("utf-8"),
+            "case1_nifty50_demonetisation_2016.csv", "⬇️  Case 1")
     with c2:
-        dl_btn(DF_CASE2.to_csv(index=False).encode("utf-8"),
-               "case2_expense_fraud_data.csv", "⬇️  Case 2 CSV")
+        dl_button(df_cs2.to_csv(index=False).encode("utf-8"),
+            "case2_ilfs_quarterly_mnar_panel.csv", "⬇️  Case 2")
     with c3:
-        dl_btn(DF_CASE3.to_csv(index=False).encode("utf-8"),
-               "case3_bank_structuring_pmla_data.csv", "⬇️  Case 3 CSV")
+        dl_button(df_cs3.to_csv(index=False).encode("utf-8"),
+            "case3_nse_intraday_feed_outage_2024.csv", "⬇️  Case 3")
+    with c4:
+        dl_button(df_cs4.to_csv(index=False).encode("utf-8"),
+            "case4_yes_bank_crisis_2020.csv", "⬇️  Case 4")
+    with c5:
+        dl_button(df_cs5.to_csv(index=False).encode("utf-8"),
+            "case5_franklin_templeton_stale_nav_2020.csv", "⬇️  Case 5")
 
     st.download_button(
-        label="📦  Download All Three Datasets — ZIP Archive (3 CSVs + README)",
+        label="📦  Download All Five Datasets — ZIP Archive (5 CSVs + README)",
         data=zip_buf,
-        file_name="mountain_path_benford_case_studies.zip",
+        file_name="mountain_path_case_studies_data.zip",
         mime="application/zip",
         use_container_width=True,
     )
-
-
-# ═════════════════════════════════════════════════════════════
-# PAGE: ML ANOMALY DETECTION
-# ═════════════════════════════════════════════════════════════
-elif page == "🤖 ML Anomaly Detection":
-    st.markdown("## 🤖 Machine Learning Anomaly Detection")
-    tab1, tab2, tab3 = st.tabs(["🌲 Isolation Forest","📐 Multi-Method Framework","📚 ML Concepts"])
-
-    with tab1:
-        st.markdown(f"""<div class="mp-card-blue">
-          <b style="color:{LIGHT_BLUE};">How Isolation Forest Works</b><br><br>
-          Anomalous transactions are "easy to isolate" — they require very few random splits.
-          Score ≈ 1 → clearly anomalous | ≈ 0.5 → normal | ≪ 0.5 → very normal
-        </div>""", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            n_total = st.slider("Total transactions:", 1000, 5000, 3000, 100)
-            contamination = st.slider("Expected fraud rate (%):", 1, 10, 3) / 100
-            n_estimators = st.selectbox("Number of trees:", [100, 200, 300], index=1)
-            inc_s = st.checkbox("Include structuring fraud", True)
-            inc_v = st.checkbox("Include high-velocity fraud", True)
-            inc_l = st.checkbox("Include large amount fraud", True)
-            run_ml = st.button("🚀 Run Isolation Forest", type="primary")
-
-        with col2:
-            if run_ml:
-                np.random.seed(42)
-                n_clean = int(n_total * 0.95); n_fraud = n_total - n_clean
-                ca = np.random.lognormal(9, 1.5, n_clean)
-                ch = np.random.randint(8, 22, n_clean); cv = np.random.poisson(3, n_clean)
-                cd = np.random.exponential(2, n_clean)
-                fa, fh, fv, fd = [], [], [], []
-                if inc_s:
-                    nf=n_fraud//3; fa.extend(np.random.uniform(950000,999000,nf))
-                    fh.extend(np.random.randint(8,22,nf)); fv.extend(np.random.poisson(3,nf))
-                    fd.extend(np.random.exponential(2,nf))
-                if inc_v:
-                    nf=n_fraud//3; fa.extend(np.random.lognormal(9,1.5,nf))
-                    fh.extend(np.random.randint(22,24,nf)); fv.extend(np.random.poisson(30,nf))
-                    fd.extend(np.random.uniform(0,0.1,nf))
-                if inc_l:
-                    nf=n_fraud-len(fa)
-                    if nf>0:
-                        fa.extend(np.random.uniform(5000000,9999999,nf))
-                        fh.extend(np.random.randint(8,22,nf)); fv.extend(np.random.poisson(5,nf))
-                        fd.extend(np.random.exponential(1,nf))
-                aa=np.concatenate([ca,fa]); ah=np.concatenate([ch,fh])
-                av=np.concatenate([cv,fv]); ad=np.concatenate([cd,fd])
-                tl=np.concatenate([np.zeros(n_clean), np.ones(len(fa))])
-                def gfd(x):
-                    try: return int(str(abs(int(x)))[0])
-                    except: return 1
-                be=np.array([BENFORD.get(gfd(x),0.1) for x in aa])
-                df_ml=pd.DataFrame({"log_amount":np.log10(np.maximum(aa,1)),"hour":ah,
-                    "velocity":av,"days_since_last":ad,"benford_expected":be})
-                sc=StandardScaler(); Xs=sc.fit_transform(df_ml)
-                iso=IsolationForest(n_estimators=n_estimators,contamination=contamination,random_state=42)
-                ps=iso.fit_predict(Xs); ss=iso.score_samples(Xs)
-                df_ml["predicted_fraud"]=(ps==-1).astype(int); df_ml["anomaly_score"]=ss
-                df_ml["true_fraud"]=tl.astype(int); df_ml["amount"]=aa
-                tp=int(((df_ml.predicted_fraud==1)&(df_ml.true_fraud==1)).sum())
-                fp=int(((df_ml.predicted_fraud==1)&(df_ml.true_fraud==0)).sum())
-                fn=int(((df_ml.predicted_fraud==0)&(df_ml.true_fraud==1)).sum())
-                pr=tp/(tp+fp) if tp+fp>0 else 0; rc=tp/(tp+fn) if tp+fn>0 else 0
-                f1=2*pr*rc/(pr+rc) if pr+rc>0 else 0
-                c1m,c2m,c3m,c4m=st.columns(4)
-                c1m.metric("Precision",f"{pr*100:.1f}%"); c2m.metric("Recall",f"{rc*100:.1f}%")
-                c3m.metric("F1-Score",f"{f1:.3f}"); c4m.metric("Flagged",f"{tp+fp:,}")
-                ndf=df_ml[df_ml.predicted_fraud==0]; fdf=df_ml[df_ml.predicted_fraud==1]
-                fig_sc=go.Figure()
-                fig_sc.add_trace(go.Scatter(x=ndf.log_amount,y=ndf.velocity,mode="markers",
-                    marker=dict(color=MID_BLUE,size=4,opacity=0.4),name="Normal"))
-                fig_sc.add_trace(go.Scatter(x=fdf.log_amount,y=fdf.velocity,mode="markers",
-                    marker=dict(color=RED,size=8,symbol="x",opacity=0.8),name="Flagged"))
-                fig_sc.update_layout(**PL,height=380,title=dict(text="<b>Isolation Forest: Amount vs Velocity</b>",
-                    font=dict(color=GOLD,size=13)),legend=dict(font=dict(color=TXT)))
-                st.plotly_chart(fig_sc, use_container_width=True)
-
-    with tab2:
-        st.markdown(f"""<div class="mp-card">
-          <b style="color:{GOLD};">Ensemble Anomaly Scoring</b><br>
-          Score = w₁·S_Benford + w₂·S_IsoForest + w₃·S_Rules + w₄·S_Network
-        </div>""", unsafe_allow_html=True)
-        st.dataframe(pd.DataFrame({
-            "Component":["Rule-Based","Benford's Law","Isolation Forest","Network / Velocity"],
-            "Weight":["25%","20%","30%","25%"],
-            "Detects Best":["Known patterns","Fabricated amounts","Multivariate anomalies","Collaborative fraud"]}),
-            use_container_width=True, hide_index=True)
-        for lbl, col, desc in [
-            ("Layer 1: Rule-Based",DARK_BLUE,"Transaction limits • Threshold proximity • Duplicates"),
-            ("Layer 2: Benford",MID_BLUE,"First-digit • MAD • Chi-squared • Z-score • Summation test"),
-            ("Layer 3: ML","#6a0080","Isolation Forest • Autoencoder • DBSCAN • LOF"),
-            ("Layer 4: Network","#008060","Graph analytics • Entity linkages • Velocity"),
-            ("Layer 5: Human","#805000","Prioritised queue • Interview • Verification • Legal action"),
-        ]:
-            st.markdown(f"""<div style="background:{CARD_BG}; border-left:5px solid {col};
-                border-radius:6px; padding:12px 16px; margin:6px 0;">
-              <b style="color:{col};">{lbl}</b>
-              <span style="color:{MUTED}; font-size:12px; margin-left:12px;">{desc}</span>
-            </div>""", unsafe_allow_html=True)
-
-    with tab3:
-        for title, content in [
-            ("Supervised vs Unsupervised","Isolation Forest is unsupervised — learns 'normal' without fraud labels. Critical when fraud is rare and novel."),
-            ("The Curse of Class Imbalance","Genuine fraud is 0.1–3% of transactions. Use Precision, Recall, F1 — not accuracy."),
-            ("Precision vs Recall Trade-off","High Recall = fewer missed frauds. In fraud detection, Recall usually matters more."),
-            ("Feature Engineering","Log-transform amounts, compute velocity, time-since-last, Benford probability as feature, rolling averages."),
-            ("Model Drift","Re-train quarterly. Track Recall over time — declining Recall signals drift."),
-        ]:
-            with st.expander(f"💡 {title}", expanded=False):
-                st.markdown(f'<div class="mp-card-blue"><span style="color:{TXT};">{content}</span></div>', unsafe_allow_html=True)
+    footer()
 
 
 # ═════════════════════════════════════════════════════════════
 # PAGE: QUIZ
 # ═════════════════════════════════════════════════════════════
-elif page == "❓ Quiz & Assessment":
-    st.markdown(f"""
-    <div class="hero-wrap">
-      <div style="font-size:32px;color:{GOLD};font-weight:900;letter-spacing:1px;">
-        Study Guide &amp; Quiz Assessment</div>
-      <div style="font-size:16px;color:{TXT};margin:8px 0 12px;">
-        Benford\'s Law &amp; Fraud Analytics — Learn · Practise · Master</div>
-      <span class="badge">Study Guide</span>
-      <span class="badge">8-Question Quiz</span>
-      <span class="badge">Instant Feedback</span>
-      <span class="badge">Detailed Explanations</span>
-    </div>""", unsafe_allow_html=True)
+elif page == "📖 Study Guide & Quiz":
+    hero("Quiz, Assessment & Study Guide",
+         "Financial Data Wrangling & Cleaning — Learn · Practise · Master",
+         ["Study Guide","8-Question Quiz","Instant Feedback","Detailed Explanations"])
 
     tab_study, tab_quiz = st.tabs([
         "📖 Study Guide — Q&A Format",
         "✏️ Take the Quiz",
     ])
 
-    # ══════════════════════════════════════════════════════
-    # TAB 1: STUDY GUIDE (Q&A)
-    # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════
+    # TAB 1 — STUDY GUIDE (Q&A format, all topics)
+    # ══════════════════════════════════════════════════════════
     with tab_study:
-        shdr = lambda icon, title: st.markdown(f"""
-        <div style="display:flex;align-items:center;gap:10px;margin:1.4rem 0 0.5rem;">
-          <span style="font-size:1.3rem;">{icon}</span>
-          <span style="font-size:1.2rem;font-weight:700;color:{LIGHT_BLUE};">{title}</span>
-        </div>
-        <div style="height:2px;background:linear-gradient(90deg,{GOLD},transparent);margin-bottom:1rem;"></div>
-        """, unsafe_allow_html=True)
-
-        def qa(q, a, tag="", formula=None, example=None, warning=None, tip=None):
-            tag_html = f'<span class="badge" style="font-size:10px;margin-bottom:8px;">{tag}</span><br>' if tag else ""
-            formula_html = (f'<div class="formula-box" style="margin:10px 0;padding:12px 18px;">' +
-                formula + '</div>') if formula else ""
-            example_html = (f'<div class="mp-card-blue" style="margin:8px 0;padding:10px 14px;">' +
-                f'<span style="font-size:0.75rem;color:{MUTED};text-transform:uppercase;">Example</span><br>' +
-                f'<span style="font-size:0.85rem;">{example}</span></div>') if example else ""
-            warn_html = (f'<div class="mp-card-red" style="margin:8px 0;padding:10px 14px;">' +
-                f'<span style="font-size:0.75rem;color:{RED};font-weight:700;">⚠️ Common Mistake</span><br>' +
-                f'<span style="font-size:0.85rem;">{warning}</span></div>') if warning else ""
-            tip_html = (f'<div class="mp-card-green" style="margin:8px 0;padding:10px 14px;">' +
-                f'<span style="font-size:0.75rem;color:{GREEN};font-weight:700;">💡 Exam Tip</span><br>' +
-                f'<span style="font-size:0.85rem;">{tip}</span></div>') if tip else ""
-            with st.expander(f"❓  {q}"):
-                st.markdown(f'''{tag_html}
-                <div style="font-size:0.93rem;color:{TXT};line-height:1.7;">{a}</div>
-                {formula_html}{example_html}{warn_html}{tip_html}
-                ''', unsafe_allow_html=True)
-
-        st.markdown(f'''<div class="mp-card">
-        This study guide covers <b>every topic</b> in the Benford\'s Law and Fraud Analytics course.
+        shdr("📖", "Complete Study Guide — Question & Answer Format")
+        st.markdown(f"""<div class="mp-card">
+        This study guide covers <b>every topic</b> in the course using a question-and-answer format.
         Click any question to reveal the full explanation. Work through each section before taking the quiz.
-        </div>''', unsafe_allow_html=True)
-
-        # ── SECTION 1: FOUNDATIONS ───────────────────────
-        shdr("📐", "Section 1 — Foundations of Benford\'s Law")
-
-        qa("What is Benford\'s Law and how was it discovered?",
-           f'''Benford\'s Law (also called the First-Digit Law) states that in many naturally occurring datasets,
-           the <b style="color:{GOLD};">leading digit is NOT uniformly distributed</b> — digit 1 appears
-           as the first digit ~30% of the time, while digit 9 appears only ~4.6%.<br><br>
-           <b>Discovery timeline:</b><br>
-           <b style="color:{GOLD};">1881 — Simon Newcomb:</b> Noticed the early pages of logarithm tables
-           were more worn — people looked up numbers starting with 1 far more often.<br>
-           <b style="color:{GOLD};">1938 — Frank Benford:</b> Tested 20,229 data points from 20 different
-           datasets (river areas, atomic weights, baseball stats, street addresses, population figures).
-           The same digit pattern appeared every time.''',
-           tag="Foundations",
-           formula=f'P(d) = log<sub>10</sub>(1 + 1/d) &nbsp;&nbsp; where d ∈ {{1, 2, 3, 4, 5, 6, 7, 8, 9}}',
-           example="P(1) = log₁₀(2) ≈ 30.1% · P(2) = log₁₀(3/2) ≈ 17.6% · P(9) = log₁₀(10/9) ≈ 4.6%",
-           tip="Remember: digits 1–3 account for 60.2% of all leading digits. Digit 1 alone: 30.1%.")
-
-        qa("What is the logarithmic intuition behind Benford\'s Law?",
-           f'''Numbers "spend more time" at lower first digits because of how multiplication and growth work:<br><br>
-           Starting at ₹100 (digit 1), a 10% growth rate keeps the first digit as 1 for 8 consecutive steps
-           before reaching ₹214 (digit 2).<br><br>
-           <b>The key insight:</b><br>
-           • To go from 1xx → 2xx requires a <b>100% increase</b> in value<br>
-           • To go from 9xx → 10xx requires only an <b>11% increase</b><br>
-           • So on a logarithmic scale, the interval for digit 1 is much wider than for digit 9<br><br>
-           On a log scale, the probability of starting with digit d equals the length of the interval
-           [log₁₀(d), log₁₀(d+1)] = log₁₀(1 + 1/d)''',
-           tag="Foundations",
-           tip="Benford\'s Law holds for data that spans multiple orders of magnitude (e.g., ₹100 to ₹10,00,000). It breaks down for data confined to a narrow range.")
-
-        qa("For which datasets does Benford\'s Law apply, and for which does it NOT apply?",
-           f'''<b style="color:{GREEN};">✅ APPLIES TO:</b><br>
-           Revenue and sales figures · Expense and invoice amounts · Tax return values ·
-           Financial statement line items · Stock prices and volumes · GST and customs values ·
-           Population data · Scientific measurements · River areas, city sizes<br><br>
-           <b style="color:{RED};">❌ DOES NOT APPLY TO:</b><br>
-           Phone numbers (fixed format, assigned not natural) ·
-           Employee / account IDs (sequential, not multiplicative) ·
-           Ages (bounded range 0–120) ·
-           Prices with psychological anchoring (₹999, ₹4,999) ·
-           Numbers assigned uniformly (lottery, zip codes) ·
-           Data confined to a narrow range (e.g., all between 50–99)''',
-           tag="Foundations",
-           warning="A common exam mistake: applying Benford\'s Law to employee ID numbers or phone numbers — these are assigned sequentially and do NOT arise from natural multiplicative processes.",
-           tip="Key test: Does the data span at least 2 orders of magnitude (e.g., ₹1,000 to ₹1,00,000)? If yes, Benford probably applies. If data is narrowly bounded, it does not.")
-
-        qa("What is the Benford distribution — give the probability for each digit?",
-           f'''<table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
-           <tr style="color:{GOLD};border-bottom:1px solid {GOLD}33;">
-             <th style="text-align:left;padding:4px 8px;">Digit</th>
-             <th style="text-align:left;padding:4px 8px;">Formula</th>
-             <th style="text-align:left;padding:4px 8px;">Probability</th>
-             <th style="text-align:left;padding:4px 8px;">1 in N</th>
-           </tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">1</td><td>log₁₀(2/1)</td><td>30.10%</td><td>1 in 3</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">2</td><td>log₁₀(3/2)</td><td>17.61%</td><td>1 in 6</td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">3</td><td>log₁₀(4/3)</td><td>12.49%</td><td>1 in 8</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">4</td><td>log₁₀(5/4)</td><td>9.69%</td><td>1 in 10</td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">5</td><td>log₁₀(6/5)</td><td>7.92%</td><td>1 in 13</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">6</td><td>log₁₀(7/6)</td><td>6.69%</td><td>1 in 15</td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">7</td><td>log₁₀(8/7)</td><td>5.80%</td><td>1 in 17</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">8</td><td>log₁₀(9/8)</td><td>5.12%</td><td>1 in 20</td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">9</td><td>log₁₀(10/9)</td><td>4.58%</td><td>1 in 22</td></tr>
-           </table>''',
-           tag="Foundations",
-           tip="Critical fact: Digits 1–3 together account for 60.2% of all leading digits. In any clean financial dataset, more than 6 out of 10 amounts should start with 1, 2, or 3.")
-
-        # ── SECTION 2: STATISTICAL TESTS ─────────────────
-        shdr("🧪", "Section 2 — Statistical Tests")
-
-        qa("What are the four statistical tests for Benford\'s Law and when is each used?",
-           f'''<b style="color:{GOLD};">1. Chi-Squared (χ²) Goodness-of-Fit Test</b><br>
-           χ² = Σ (Oᵈ − Eᵈ)² / Eᵈ &nbsp;|&nbsp; df = 8 &nbsp;|&nbsp; Critical values: 15.51 (5%), 20.09 (1%)<br>
-           Best for: medium samples (100–5,000). Problem: oversensitive with large samples.<br><br>
-           <b style="color:{GOLD};">2. MAD — Mean Absolute Deviation</b><br>
-           MAD = (1/9) × Σ |Pᵈobs − Pᵈbenford|<br>
-           Thresholds: &lt;0.006 (close) | 0.006–0.012 (acceptable) | 0.012–0.015 (marginal) | &gt;0.015 (non-conforming)<br>
-           Best for: any sample size — NOT inflated by large N. Preferred in forensic accounting.<br><br>
-           <b style="color:{GOLD};">3. Z-Score per Digit</b><br>
-           Zᵈ = (|Pᵈobs − Pᵈbenford| − 1/(2n)) / √(Pᵈbenford(1−Pᵈbenford)/n)<br>
-           Flag: |Z| &gt; 1.96 (5%) or |Z| &gt; 2.576 (1%)<br>
-           Best for: identifying WHICH specific digit is anomalous.<br><br>
-           <b style="color:{GOLD};">4. Kolmogorov-Smirnov (KS) Test</b><br>
-           D = max |Fobs(d) − FBenford(d)|<br>
-           Best for: small samples (&lt;100 records) where chi-squared assumptions don\'t hold.''',
-           tag="Statistical Tests",
-           warning="With n > 5,000, chi-squared will almost always reject Benford even for tiny, practically insignificant deviations. Always use MAD as the primary metric for large financial datasets.",
-           tip="Exam shortcut: MAD is the preferred metric because it is not inflated by sample size. Chi-squared is size-sensitive. When both are given, prioritise MAD for interpretation.")
-
-        qa("What do the MAD thresholds mean and how do you interpret them?",
-           f'''The MAD (Mean Absolute Deviation) thresholds defined by Nigrini (2012):<br><br>
-           <table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
-           <tr style="color:{GOLD};border-bottom:1px solid {GOLD}33;">
-             <th style="padding:4px 8px;text-align:left;">MAD Range</th>
-             <th style="padding:4px 8px;text-align:left;">Interpretation</th>
-             <th style="padding:4px 8px;text-align:left;">Action</th>
-           </tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">0.000 – 0.006</td><td>Close conformity</td><td>✅ No issue</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">0.006 – 0.012</td><td>Acceptable conformity</td><td>👀 Monitor</td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">0.012 – 0.015</td><td>Marginal conformity</td><td>⚠️ Review recommended</td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">&gt; 0.015</td><td>Non-conformity</td><td>🚨 Investigate immediately</td></tr>
-           </table><br>
-           The MAD measures the average absolute difference between observed and expected digit frequencies.
-           A MAD of 0.015 means the average digit is 1.5 percentage points away from Benford\'s expected value
-           — which is large given that the smallest digit probability is only 4.6%.''',
-           tag="Statistical Tests",
-           example="If P(1) observed = 18% vs expected 30.1%, that digit alone contributes |0.18−0.301|/9 ≈ 0.013 to MAD. Combined with similar deviations in other digits, MAD quickly exceeds 0.015.")
-
-        qa("What is the Round Number / Last-Digit Test and what does it detect?",
-           f'''The Last-Digit Test examines the distribution of the rightmost digit (0–9) of transaction amounts.<br><br>
-           <b>In natural data:</b> Each last digit (0–9) appears approximately 10% of the time — uniform distribution.<br><br>
-           <b>In fabricated data:</b> Humans gravitate to convenient round amounts:
-           ₹10,000; ₹25,000; ₹50,000; ₹1,00,000 → digits 0 and 5 appear 30–40%.<br><br>
-           <b style="color:{GOLD};">Round Number Score = (Observed % of 0s and 5s) ÷ 20%</b><br>
-           Score &gt; 2.0 (i.e., more than 40% ending in 0 or 5) is a significant red flag.<br><br>
-           <b>Why it catches Benford-evaders:</b> A sophisticated fraudster may know to fabricate
-           first digits correctly, but typically still uses round amounts — failing the last-digit test.''',
-           tag="Statistical Tests",
-           example="GST Case 1: 65% of fabricated invoice amounts ended in 0 or 5. Round Number Score = 65%/20% = 3.25× — far above the 2.0 red flag threshold.",
-           tip="Always run BOTH first-digit AND last-digit tests. A fraudster who defeats first-digit conformity will often still fail the round-number test.")
-
-        qa("What is the Summation Test and what pattern does it reveal?",
-           f'''The Summation Test identifies whether any specific <b>two-digit combination</b> (10–99)
-           accounts for a disproportionate share of total transaction value.<br><br>
-           <b>Expected:</b> In a clean dataset, each two-digit group should account for approximately
-           1/90 ≈ 1.11% of total transaction value.<br><br>
-           <b>Fraud signal:</b> Any group with a ratio &gt;2× the expected share (i.e., &gt;2.22%) is flagged.<br><br>
-           <b>What it detects:</b><br>
-           • Round-number fraud (all amounts starting with 50 → 50,000, 500,000)<br>
-           • Threshold gaming (all amounts starting with 49 → ₹49,000–₹49,999)<br>
-           • Fabricated invoices where a specific amount is reused repeatedly''',
-           tag="Statistical Tests",
-           example="If 40 out of 200 invoices start with digits '49' (₹49,000–₹49,999), that 2-digit group accounts for 20% of count vs expected 1.11% — an 18× spike, indicating threshold gaming.")
-
-        # ── SECTION 3: FRAUD PATTERNS ─────────────────────
-        shdr("🔍", "Section 3 — Fraud Detection Patterns")
-
-        qa("How does Benford\'s Law detect GST invoice fraud? What are the specific digit signals?",
-           f'''GST invoice fraud fails Benford because <b>humans choose amounts mentally</b>,
-           not through real commercial calculations (Qty × Rate × (1+GST%)).<br><br>
-           <b style="color:{RED};">Typical fabrication signals:</b><br>
-           • <b>Digit 1 under-represented:</b> Fabricators avoid small-looking amounts (₹10k–₹19k)
-             preferring larger-looking numbers → digit 1 drops from expected 30% to ~10%<br>
-           • <b>Digit 5 over-represented:</b> Round amounts like ₹50,000 → digit 5 spikes to 40%+ vs expected 8%<br>
-           • <b>Digit 9 over-represented:</b> Structuring just below ₹1L reporting threshold
-             → digit 9 spikes from expected 4.6% to 30%+<br>
-           • <b>Last digits 0 and 5 dominate:</b> Round amounts → 60%+ ending in 0 or 5 vs expected 20%<br><br>
-           <b>Real invoices</b> in textile trade: Qty × Rate (₹145.50/m) × (1+18%) creates
-           irregular amounts across all digit ranges.''',
-           tag="GST Fraud",
-           example="M/s Radha Textile Traders: MAD = 0.28 (far above 0.015), χ² > 500 (far above 20.09). Digit-1: 10% vs 30.1% expected. Digit-9: 30% vs 4.6% expected. All three suppliers were shell entities at same address.",
-           tip="The GSTN can run this test on ALL taxpayers simultaneously — millions of returns screened in minutes, identifying high-risk cases for limited audit resources.")
-
-        qa("What is threshold gaming and which digit does it create a spike in?",
-           f'''<b>Threshold gaming</b> (also called "just-below" fraud) occurs when an employee,
-           vendor, or taxpayer deliberately keeps transaction amounts just below an approval,
-           reporting, or audit threshold to avoid oversight.<br><br>
-           <b style="color:{GOLD};">The digit-spike rule:</b><br>
-           The digit flagged reveals EXACTLY which threshold is being gamed:<br><br>
-           <table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
-           <tr style="color:{GOLD};border-bottom:1px solid {GOLD}33;">
-             <th style="padding:4px 8px;text-align:left;">Threshold</th>
-             <th style="padding:4px 8px;text-align:left;">Gaming Range</th>
-             <th style="padding:4px 8px;text-align:left;">Digit Spike</th>
-           </tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">₹5,000 (expense approval)</td><td>₹4,000–₹4,999</td><td>Digit <b>4</b></td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">₹25,000 (VP approval)</td><td>₹24,000–₹24,999</td><td>Digit <b>2</b></td></tr>
-           <tr style="color:{TXT};"><td style="padding:4px 8px;">₹10 Lakh (PMLA CTR)</td><td>₹9,00,000–₹9,99,999</td><td>Digit <b>9</b></td></tr>
-           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">₹50,000 (TDS threshold)</td><td>₹40,000–₹49,999</td><td>Digit <b>4</b></td></tr>
-           </table>''',
-           tag="Fraud Detection",
-           example="SM Verma: ₹5,000 expense approval limit. 80% of his claims fell in ₹4,000–₹4,999 → massive digit-4 spike. Z-score for digit 4 = 8.3 (far above 2.576 threshold).",
-           warning="A digit-4 spike alone is not proof of threshold gaming — FMCG products priced at ₹4,999 would also create this. Cross-check: do the SAME employees show digit-4 spikes consistently across many expense categories?")
-
-        qa("How does PMLA structuring create a Benford signature? What action is legally required?",
-           f'''<b>PMLA structuring ("smurfing")</b> involves deliberately breaking large cash sums
-           into multiple deposits each below the ₹10 lakh Cash Transaction Report (CTR) threshold.<br><br>
-           <b style="color:{RED};">Benford signature:</b><br>
-           • When structuring against ₹10L threshold: deposits cluster in ₹9,00,000–₹9,99,999<br>
-           • This creates extreme <b>digit-9 over-representation</b>: observed 60–70% vs Benford expected 4.6%<br>
-           • Z-score for digit 9 becomes extremely high (often &gt;10)<br>
-           • MAD typically exceeds 0.20 (far above 0.015 threshold)<br><br>
-           <b style="color:{GOLD};">Legal obligation under PMLA 2002 and RBI Master Directions:</b><br>
-           Banks MUST file a <b>Suspicious Transaction Report (STR)</b> with FIU-IND when structuring
-           is suspected — even when NO individual transaction crosses the ₹10L threshold.
-           Structuring itself is a criminal offence under PMLA Section 3.
-           Penalty: rigorous imprisonment 3–7 years + attachment of funds.''',
-           tag="PMLA / AML",
-           example="45 deposits over 60 days averaging ₹9.5L each = ₹43L total. Zero CTRs triggered individually. Aggregate reveals undisclosed income. Digit-9 frequency: 65% vs expected 4.6%.",
-           tip="STR obligation exists even when aggregate is below ₹10L if the PATTERN is suspicious. Velocity (0.75 deposits/day vs peer average of 2–3/month) combined with Benford non-conformity is powerful STR justification.")
-
-        qa("Why does per-employee testing outperform aggregate testing for expense fraud detection?",
-           f'''<b>Aggregate testing</b> runs Benford on ALL employee claims combined.
-           A fraudster with 250 fraudulent claims is mixed with thousands of legitimate claims
-           from other employees — their signal is diluted and may not cross the MAD threshold.<br><br>
-           <b>Per-employee testing</b> runs Benford on EACH employee\'s claims independently.
-           The same fraudster\'s 250 claims — all clustering near ₹5,000 — show an extreme
-           MAD when analysed alone, immediately flagging them.<br><br>
-           <b>The three-layer screening approach:</b><br>
-           1. <b>Volume screen:</b> Flag employees with 3× peer average claim count<br>
-           2. <b>Benford per employee:</b> Run on any employee with &gt;30 claims<br>
-           3. <b>Threshold proximity:</b> % of claims within 10% below each approval threshold''',
-           tag="Expense Fraud",
-           example="SM Verma: 250 claims vs peer average of 38. Per-employee MAD = 0.28 (extreme non-conformity). Aggregate team MAD: 0.009 (acceptable) — the fraud is invisible in aggregate data.",
-           tip="For effective expense fraud monitoring, set automatic alerts when: (1) employee claim count > 2× peer average AND (2) their per-employee MAD > 0.015.")
-
-        # ── SECTION 4: ML & ENSEMBLE ─────────────────────
-        shdr("🤖", "Section 4 — Machine Learning & Ensemble Methods")
-
-        qa("How does Isolation Forest work and why is it suited to fraud detection?",
-           f'''<b>Isolation Forest</b> detects anomalies by measuring how easy it is to isolate
-           each observation using random decision trees.<br><br>
-           <b>Core principle:</b> Anomalous transactions are rare and unusual — they exist in sparse
-           regions of feature space and can be isolated with very few random splits.
-           Normal transactions are densely clustered and require many splits to separate.<br><br>
-           <b>Anomaly score formula:</b><br>
-           s(x, n) = 2^(−E[h(x)] / c(n))<br>
-           where E[h(x)] = expected path length, c(n) = normalisation constant<br><br>
-           • Score ≈ 1 → Clearly anomalous (isolated in very few splits)<br>
-           • Score ≈ 0.5 → Normal (requires many splits)<br>
-           • Score ≪ 0.5 → Very dense normal point<br><br>
-           <b style="color:{GOLD};">Why suited to fraud:</b><br>
-           Unsupervised — no fraud labels needed. Detects multivariate anomalies across
-           amount + velocity + timing + Benford probability simultaneously.''',
-           tag="Machine Learning",
-           formula="s(x,n) = 2^(−E[h(x)]/c(n))",
-           example="A ₹9,80,000 cash deposit made at 11:30pm with 30 deposits in 60 days: each feature alone may not trigger rules, but Isolation Forest identifies the combination as anomalous.",
-           tip="Set contamination parameter to your expected fraud rate (typically 0.01–0.03 in financial data). Higher contamination → more flags but more false positives.")
-
-        qa("What is the Ensemble Fraud Score and how are the weights typically set?",
-           f'''No single fraud detection method is universally best. The most robust systems
-           combine multiple signals into a <b>composite fraud risk score</b>:<br><br>
-           <b style="color:{GOLD};">Score = w₁·S_Benford + w₂·S_IsoForest + w₃·S_Rules + w₄·S_Network</b><br><br>
-           Each component score S is normalised to [0,1]. Σwᵢ = 1.<br><br>
-           Typical weights:<br>
-           • Rule-Based Detection: 25% (known patterns, fast)<br>
-           • Benford\'s Law: 20% (fabricated amounts)<br>
-           • Isolation Forest: 30% (multivariate anomalies)<br>
-           • Network / Velocity: 25% (collaborative fraud)<br><br>
-           <b>The 5-layer framework:</b><br>
-           Layer 1: Rules → Layer 2: Benford → Layer 3: ML → Layer 4: Network → Layer 5: Human investigation''',
-           tag="Machine Learning",
-           tip="In exams: each layer catches what the others miss. Benford catches fabricated amounts; Isolation Forest catches multivariate combinations; Network catches smurfing rings with multiple accounts.")
-
-        qa("What is class imbalance in fraud detection and why does accuracy fail as a metric?",
-           f'''<b>Class imbalance:</b> In real-world fraud data, genuine fraud is typically
-           0.1–3% of all transactions. Clean data: 97–99.9%.<br><br>
-           <b>Why accuracy fails:</b> A naive model that labels EVERYTHING as "normal" achieves
-           97%+ accuracy but catches zero fraud — it has 100% False Negative Rate.<br><br>
-           <b style="color:{GOLD};">Correct metrics for fraud detection:</b><br>
-           • <b>Precision</b> = TP / (TP + FP): Of all flagged transactions, what % are actually fraud?
-             High precision = fewer false positives (fewer innocent customers wrongly accused)<br>
-           • <b>Recall (Sensitivity)</b> = TP / (TP + FN): Of all actual frauds, what % were caught?
-             High recall = fewer missed frauds (fewer fraudsters escaping detection)<br>
-           • <b>F1-Score</b> = 2 × (Precision × Recall) / (Precision + Recall): Harmonic mean<br><br>
-           In fraud detection, <b>Recall is usually more important</b> — it\'s worse to miss fraud than
-           to over-investigate.''',
-           tag="Machine Learning",
-           warning="Never use accuracy as a fraud model performance metric. A model with 99% accuracy and 0% recall is completely useless for fraud detection.",
-           tip="Exam rule: High Recall = fewer missed frauds (more sensitive). High Precision = fewer false alarms. In fraud: Recall > Precision typically, but the trade-off is configurable via the decision threshold.")
-
-        # ── SECTION 5: LIMITATIONS & ETHICS ──────────────
-        shdr("⚖️", "Section 5 — Limitations & Ethical Principles")
-
-        qa("What are the critical limitations of Benford\'s Law in fraud detection?",
-           f'''<b style="color:{RED};">1. Not all data qualifies</b><br>
-           Phone numbers, ages, zip codes, sequential IDs — these don\'t follow Benford.
-           Always verify applicability before testing. Misapplication produces false alarms.<br><br>
-           <b style="color:{RED};">2. Sample size sensitivity (Chi-squared)</b><br>
-           Chi-squared becomes oversensitive with n &gt; 5,000 — rejects Benford even for
-           tiny, practically irrelevant deviations. Always use MAD for large datasets.<br><br>
-           <b style="color:{RED};">3. Benford conformity ≠ innocence</b><br>
-           A sophisticated fraudster who knows the law can deliberately fabricate first-digit
-           conforming numbers. Defence: use second-digit, last-digit, and summation tests together.<br><br>
-           <b style="color:{RED};">4. Industry-specific deviations</b><br>
-           FMCG companies price at ₹X9.99 (anchoring). Real estate clusters near stamp duty thresholds.
-           Always benchmark against industry peers, not the global Benford distribution.<br><br>
-           <b style="color:{RED};">5. Minimum sample size</b><br>
-           At least 50–100 records for any inference; ideally 1,000+.
-           Below 50 records, random variation alone can exceed MAD thresholds.''',
-           tag="Limitations",
-           tip="The 3-test defence against sophisticated fraud: First digit (Benford) + Last digit (round number) + Summation test. A fraudster would need to simultaneously satisfy all three to evade detection.")
-
-        qa("What are the ethical principles that must govern the use of Benford\'s Law analytics?",
-           f'''<b style="color:{GREEN};">1. Presumption of innocence</b><br>
-           A statistical flag is a signal for investigation, NOT evidence of fraud.
-           Many legitimate deviations have innocent explanations. Verify thoroughly before any action.<br><br>
-           <b style="color:{GREEN};">2. Algorithmic fairness</b><br>
-           Audit fraud models for demographic bias. If a particular industry sector, geographic region,
-           or demographic is being disproportionately flagged, the model has a fairness problem.<br><br>
-           <b style="color:{GREEN};">3. Data privacy and proportionality</b><br>
-           Transaction monitoring must comply with DPDP Act 2023 (India) and be proportionate to risk.
-           Bulk surveillance of all transactions requires regulatory authorisation.<br><br>
-           <b style="color:{GREEN};">4. Transparency and right to contest</b><br>
-           Individuals subject to adverse decisions (account freezing, audit, prosecution)
-           have the right to understand and contest the analytical basis.<br><br>
-           <b style="color:{GREEN};">5. Human-in-the-loop</b><br>
-           Machines flag; humans decide. High-stakes actions (account freezing, STR filing,
-           criminal referral) require human review and documented judgment.<br><br>
-           <b style="color:{GREEN};">6. Model governance and re-validation</b><br>
-           Fraud models must be re-validated periodically (at least quarterly). Fraudsters adapt;
-           static models become obsolete. Track Recall over time — declining Recall signals drift.''',
-           tag="Ethics",
-           warning="Using Benford analytics to freeze accounts or initiate criminal proceedings WITHOUT human review of the statistical output is a violation of due process — and legally risky for the institution.",
-           tip="For any exam question on fraud analytics ethics, the key principle is: statistical flags are necessary but not sufficient. Investigation, verification, and human judgment are always required before adverse action.")
-
-        qa("How should you respond when chi-squared and MAD give contradictory conclusions?",
-           f'''This is a common scenario with large datasets. The correct approach:<br><br>
-           <b>Scenario:</b> Chi-squared rejects at p=0.001 BUT MAD=0.008 (acceptable conformity)<br><br>
-           <b style="color:{GOLD};">Answer: Trust MAD. Chi-squared is unreliable here.</b><br><br>
-           <b>Reasoning:</b><br>
-           With n &gt; 5,000, chi-squared detects even trivial deviations as "statistically significant."
-           A deviation of 0.001% per digit is statistically detectable at large n but has no practical
-           fraud implication. MAD of 0.008 means the average digit deviates by only 0.8 percentage points
-           from Benford — well within acceptable conformity.<br><br>
-           <b>The general principle:</b><br>
-           Statistical significance ≠ practical significance. Always interpret statistical test results
-           in the context of their known limitations for the sample size at hand.''',
-           tag="Statistical Tests",
-           example="GSTN has millions of invoice records. Running chi-squared on an entire year\'s data would flag almost every large business. MAD is the operational metric used in practice.",
-           tip="Exam rule: When chi-squared and MAD conflict, ALWAYS choose MAD as the primary metric for large financial datasets. State explicitly: 'Given the large sample size, MAD is the more appropriate metric here.'")
-
-        st.markdown(f'''<div class="mp-card-green" style="margin-top:14px;">
-        <b style="color:{GREEN};">✅ Study Guide Complete!</b><br><br>
-        You have covered all 5 sections: Foundations of Benford\'s Law, Statistical Tests (Chi-squared,
-        MAD, Z-Score, KS, Round Number, Summation), Fraud Detection Patterns (GST, Expense, PMLA),
-        Machine Learning (Isolation Forest, Ensemble, Class Imbalance), and Limitations & Ethics.<br><br>
-        <b>Now test yourself</b> → Switch to the <b>✏️ Take the Quiz</b> tab.
-        </div>''', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════
-    # TAB 2: QUIZ
-    # ══════════════════════════════════════════════════════
-    with tab_quiz:
-        shdr_q = lambda icon, title: st.markdown(f"""
-        <div style="display:flex;align-items:center;gap:10px;margin:0.8rem 0 0.4rem;">
-          <span style="font-size:1.2rem;">{icon}</span>
-          <span style="font-size:1.1rem;font-weight:700;color:#ADD8E6;">{title}</span>
         </div>""", unsafe_allow_html=True)
 
-        shdr_q("✏️", "Knowledge Assessment — 8 Questions")
+        # ── HELPER: renders one Q&A card ──────────────────────
+        def qa(q, a, tag="", formula=None, example=None, warning=None, tip=None):
+            tag_html = f'<span class="badge" style="font-size:10px;margin-bottom:8px;">{tag}</span><br>' if tag else ""
+            formula_html = f"""<div class="formula-box" style="margin:10px 0;padding:12px 18px;font-size:0.9rem;">
+                {formula}</div>""" if formula else ""
+            example_html = f"""<div class="mp-card-blue" style="margin:8px 0;padding:10px 14px;">
+                <span style="font-size:0.75rem;color:{MUTED};text-transform:uppercase;letter-spacing:0.05em;">
+                Example</span><br><span style="font-size:0.85rem;">{example}</span></div>""" if example else ""
+            warn_html = f"""<div class="mp-card-red" style="margin:8px 0;padding:10px 14px;">
+                <span style="font-size:0.75rem;color:{RED};text-transform:uppercase;font-weight:700;">
+                ⚠️ Common Mistake</span><br><span style="font-size:0.85rem;">{warning}</span></div>""" if warning else ""
+            tip_html = f"""<div class="mp-card-green" style="margin:8px 0;padding:10px 14px;">
+                <span style="font-size:0.75rem;color:{GREEN};text-transform:uppercase;font-weight:700;">
+                💡 Exam Tip</span><br><span style="font-size:0.85rem;">{tip}</span></div>""" if tip else ""
+            with st.expander(f"❓  {q}"):
+                st.markdown(f"""{tag_html}
+                <div style="font-size:0.93rem;color:{TXT};line-height:1.7;">{a}</div>
+                {formula_html}{example_html}{warn_html}{tip_html}
+                """, unsafe_allow_html=True)
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 1 — DATA QUALITY FUNDAMENTALS
+        # ══════════════════════════════════════════════════════
+        shdr("🏗️","Section 1 — Data Quality Fundamentals")
+
+        qa("What is 'data quality' and why does it matter in finance?",
+           f"""Data quality refers to the <b style="color:{GOLD};">fitness of data for its intended analytical purpose.</b>
+           High-quality financial data must be: <b>Complete</b> (all required observations present),
+           <b>Accurate</b> (values correctly represent financial reality), <b>Consistent</b> (no contradictions
+           across fields or time), <b>Timely</b> (reflects the relevant point in time), <b>Valid</b>
+           (values within expected domain ranges), and <b>Unique</b> (no duplicate records).<br><br>
+           In finance, decisions involving billions of rupees are made based on quantitative models.
+           The GIGO principle — <i>Garbage In, Garbage Out</i> — has profound consequences: a single
+           undetected invalid value can cascade into catastrophic financial loss.""",
+           tag="Fundamentals",
+           example="Knight Capital Group lost USD 440 million in 45 minutes on 1 August 2012 due to stale, erroneous order data triggering unintended trading. Root cause: failure to validate and clean data before deployment.",
+           tip="Remember the 6 dimensions: Complete · Accurate · Consistent · Timely · Valid · Unique")
+
+        qa("What is the standard data quality pipeline in financial analytics?",
+           f"""The pipeline has six stages in sequence:<br><br>
+           <b style="color:{GOLD};">1. Ingest</b> — Load raw data from APIs, files, or databases<br>
+           <b style="color:{GOLD};">2. Validate</b> — Check schema, data types, domain ranges, and business rules<br>
+           <b style="color:{GOLD};">3. Missing</b> — Detect, classify (MCAR/MAR/MNAR), and impute missing values<br>
+           <b style="color:{GOLD};">4. Outliers</b> — Detect using statistical methods; review and manage appropriately<br>
+           <b style="color:{GOLD};">5. Format</b> — Fix data types, set correct index, handle frequency and timezone<br>
+           <b style="color:{GOLD};">6. Output</b> — Produce the analysis-ready dataset with a cleaning audit trail""",
+           tag="Fundamentals",
+           tip="The pipeline is sequential — you MUST handle missing values BEFORE outlier detection, because outlier statistics (mean, std) are distorted by NaNs.")
+
+        qa("What are the real-world consequences of poor data quality in finance?",
+           f"""Different domains suffer different consequences:<br><br>
+           • <b>Equity Research:</b> Missing corporate action adjustments → incorrect return calculations, wrong momentum signals<br>
+           • <b>Credit Scoring:</b> Null income imputed as zero → healthy borrowers misclassified as high-risk<br>
+           • <b>Risk Management:</b> Outlier VaR observation from data error → VaR massively overstated, excess capital held<br>
+           • <b>Algorithmic Trading:</b> Stale prices from feed outage → algorithm trades on wrong prices, large losses<br>
+           • <b>Regulatory Reporting:</b> Invalid date formats in CRILC filing → regulatory non-compliance, penalties<br>
+           • <b>Macro Forecasting:</b> Outlier GDP revision not handled → model forecasts structurally biased""",
+           tag="Fundamentals",
+           warning="Regulatory data quality failures (CRILC, RBI filings) are treated as compliance violations, not just modelling errors. Penalties can be severe.")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 2 — MISSING DATA
+        # ══════════════════════════════════════════════════════
+        shdr("🔍","Section 2 — Missing Data — Classification & Treatment")
+
+        qa("What are the three mechanisms of missingness? Explain each with a financial example.",
+           f"""Formalised by Little & Rubin (1987) — the mechanism determines the correct treatment.<br><br>
+           <b style="color:{LIGHT_BLUE};">MCAR — Missing Completely at Random</b><br>
+           The probability of being missing is unrelated to any observed or unobserved data.
+           <i>P(missing) = constant</i><br>
+           → Any imputation method works. Listwise deletion is valid but wasteful.<br><br>
+           <b style="color:{GOLD};">MAR — Missing at Random</b><br>
+           The probability of being missing depends on <i>observed</i> data but NOT on the missing value itself.
+           <i>P(missing | X_obs, X_miss) = P(missing | X_obs)</i><br>
+           → MICE, KNN, or model-based imputation using observed predictors.<br><br>
+           <b style="color:{RED};">MNAR — Missing Not at Random</b><br>
+           The probability of being missing depends on the <i>missing value itself</i>.
+           <i>P(missing | X_obs, X_miss) depends on X_miss</i><br>
+           → No standard fix. Requires domain expertise and sensitivity analysis.""",
+           tag="Missing Data",
+           example="MCAR: NSE random packet-loss on 0.1% of days. MAR: Small-caps missing EPS estimates (missingness related to market cap, not EPS). MNAR: IL&FS stopped disclosing cash flows precisely because cash flows were catastrophically negative.",
+           warning="MNAR is the most dangerous because analysts who assume MCAR or MAR and apply standard imputation will get biased results — and will not know it.",
+           tip="Exam shortcut: MCAR = Best case · MAR = Manageable · MNAR = Most Dangerous")
+
+        qa("How do you choose which imputation method to use?",
+           f"""The decision depends on three factors: <b>% missing</b>, <b>missingness mechanism</b>, and <b>variable type</b>.<br><br>
+           <table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
+           <tr style="color:{GOLD};border-bottom:1px solid {GOLD}33;">
+             <th style="text-align:left;padding:4px 8px;">% Missing</th>
+             <th style="text-align:left;padding:4px 8px;">Mechanism</th>
+             <th style="text-align:left;padding:4px 8px;">Strategy</th>
+           </tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">&lt;2%</td><td>MCAR</td><td>Forward-fill (LOCF) or backward-fill</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">2–15%</td><td>MAR</td><td>KNN or regression-based imputation</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">&gt;15%</td><td>MAR</td><td>MICE (gold standard) or median + flag</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">Any</td><td>MNAR</td><td>Domain-adjusted; sensitivity analysis</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">&gt;50%</td><td>Any</td><td>Drop column; flag and document</td></tr>
+           </table>""",
+           tag="Missing Data",
+           tip="In exams: 'moderate missing + MAR' → KNN. 'Research grade + MAR' → MICE. 'MNAR' → no standard fix.")
+
+        qa("Why is mean imputation dangerous for financial data?",
+           f"""Mean imputation has a critical flaw: it <b style="color:{RED};">artificially reduces the variance</b>
+           of the imputed variable.<br><br>
+           Mathematically: <b>Var(X_imputed) &lt; Var(X_true)</b><br><br>
+           This creates three downstream problems:<br>
+           1. <b>VaR calculations:</b> Understated risk — imputed return distributions have artificially thin tails<br>
+           2. <b>Correlation estimates:</b> Biased toward zero — imputed values all equal X̄, reducing covariance<br>
+           3. <b>Credit scoring:</b> Attenuates discriminatory power of imputed variables in models<br><br>
+           The rule: <b>Never use mean imputation for variables entering variance/covariance calculations,
+           risk models, or where distribution shape matters.</b>""",
+           tag="Missing Data",
+           example="If a stock has 20 missing return days imputed as the mean return (say +0.02%), those days contribute zero variance. A VaR model will see a narrower distribution than reality — dangerously underestimating tail risk.",
+           warning="Mean imputation is so common in practice that examiners frequently test whether students understand its variance-reducing effect.")
+
+        qa("What is Forward Fill (LOCF) and when should you NOT use it?",
+           f"""<b>LOCF — Last Observation Carried Forward</b>: replaces a missing value with the most
+           recent non-missing value in the series.<br><br>
+           <b style="color:{GREEN};">When appropriate:</b> Price data on non-trading days, holiday gaps,
+           thin trading days for illiquid securities — where the last traded price is a reasonable proxy
+           for the current fair value.<br><br>
+           <b style="color:{RED};">When NOT appropriate:</b><br>
+           1. <b>Return calculations:</b> Forward-filled prices produce artificial zero-return days.
+              The return series will contain spikes at zero that understate true volatility.<br>
+           2. <b>Real-time signals:</b> Stale forward-filled prices in live trading systems trigger
+              trades at wrong prices — the cause of many algorithmic trading losses.<br>
+           3. <b>Macroeconomic data with trends:</b> LOCF on GDP or inflation can mask structural changes.""",
+           tag="Missing Data",
+           formula="Zero-return detection: <code style='font-size:0.85rem;'>returns_raw = prices_ffill.pct_change()<br>zero_flag = (returns_raw == 0) & prices.isnull().shift(1).fillna(False)</code>",
+           tip="Always calculate returns on the ORIGINAL series with NaNs, not on the forward-filled series.")
+
+        qa("What is KNN Imputation and how is it applied to financial data?",
+           f"""KNN Imputation finds the <b>k most similar observations</b> (based on observed features)
+           and imputes the missing value as a weighted average of the k neighbours:<br><br>
+           <b>X̂_miss = Σ wⱼ · Xⱼ,miss / Σ wⱼ</b><br><br>
+           where wⱼ = 1/d(i,j) — inverse distance weights, d = Euclidean distance on scaled features.<br><br>
+           <b style="color:{GOLD};">Key implementation steps:</b><br>
+           1. <b>Scale features first</b> — KNN is distance-based; unscaled features distort distances<br>
+           2. Use StandardScaler before KNNImputer<br>
+           3. Inverse-transform after imputation to restore original scale<br>
+           4. Typical k = 5–10; tune via cross-validation on complete cases<br><br>
+           <b style="color:{LIGHT_BLUE};">Financial application:</b> Imputing missing PE or EV/EBITDA ratios
+           using comparable companies (same sector, size, profitability) as neighbours.""",
+           tag="Missing Data",
+           formula="<code>from sklearn.impute import KNNImputer<br>from sklearn.preprocessing import StandardScaler<br>scaler = StandardScaler()<br>X_scaled = scaler.fit_transform(df)<br>X_imp = KNNImputer(n_neighbors=7).fit_transform(X_scaled)<br>df_imputed = pd.DataFrame(scaler.inverse_transform(X_imp))</code>",
+           warning="Never run KNNImputer on raw (unscaled) financial data. A stock price of ₹3,500 will dominate distances over a PE ratio of 25, making neighbour selection meaningless.")
+
+        qa("What is MICE and why is it considered the gold standard?",
+           f"""<b>MICE — Multiple Imputation by Chained Equations</b><br><br>
+           <b>Algorithm:</b><br>
+           1. Fill missing values with simple initial estimates (mean)<br>
+           2. For each variable Xⱼ with missing values: fit a regression model using all other
+              variables as predictors; draw imputations from the posterior predictive distribution<br>
+           3. Cycle through all variables m times (m = 5–20 iterations)<br>
+           4. Create M complete datasets (M = 5–10)<br>
+           5. Run the full analysis on each complete dataset separately<br>
+           6. Combine results using <b>Rubin's Rules</b>: θ̂ = (1/M) Σ θ̂ᵢ<br><br>
+           <b style="color:{GOLD};">Why it's the gold standard:</b><br>
+           • Correctly propagates uncertainty from imputation into final estimates<br>
+           • Produces unbiased estimates under MAR<br>
+           • Preserves the relationships between variables (unlike single imputation methods)<br>
+           • Rubin's combining rule accounts for both within-imputation and between-imputation variance""",
+           tag="Missing Data",
+           formula="Rubin's Rule for variance: Var(θ̂) = (1/M)ΣWᵢ + (1 + 1/M)·B<br>where W = within-imputation variance, B = between-imputation variance",
+           tip="Python: sklearn.impute.IterativeImputer (experimental) or the miceforest package")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 3 — OUTLIER DETECTION
+        # ══════════════════════════════════════════════════════
+        shdr("📊","Section 3 — Outlier Detection & Management")
+
+        qa("What are the three types of outliers in financial data and how should each be treated?",
+           f"""<b style="color:{RED};">1. Error Outliers</b> — Data errors (negative prices, wrong decimal,
+           feed errors). These should be corrected or removed.<br>
+           <i>Examples: NSE price = −50; Volume = 0 on active trading day; PE ratio = 50,000</i><br><br>
+           <b style="color:{GOLD};">2. Genuine Extreme Events</b> — Real market events that represent
+           legitimate tail risk. These must be <b>PRESERVED</b> for risk modelling and stress-testing.<br>
+           <i>Examples: NIFTY −38% (COVID March 2020); NIFTY −4% (Demonetisation Nov 2016);
+           RBI emergency rate decisions</i><br><br>
+           <b style="color:{LIGHT_BLUE};">3. Structural Breaks</b> — One-time shifts in the data-generating
+           process. Require regime-splitting or a dummy variable rather than outlier treatment.<br>
+           <i>Examples: Merger/demerger; Basel III → IV regulatory change; Index reconstitution</i>""",
+           tag="Outlier Detection",
+           warning="The most dangerous mistake is applying a mechanical |Z| > 3 rule that removes genuine extreme events like COVID crashes from VaR datasets — gutting the very tail risk signal the model is supposed to capture.",
+           tip="The key question: 'Is this a data error or a real event?' Answer requires domain knowledge, not just statistics.")
+
+        qa("Explain the Z-Score method for outlier detection and its limitation in finance.",
+           f"""<b>Z-Score</b> measures how many standard deviations an observation is from the mean:<br><br>
+           <b>Zᵢ = (Xᵢ − X̄) / σ</b><br><br>
+           Rule: Flag observations where |Zᵢ| > 3 (covers 99.73% of data under normality).<br><br>
+           <b style="color:{RED};">Critical limitation for financial returns:</b><br>
+           Financial returns are NOT normally distributed — they exhibit:
+           <ul style="margin:8px 0;padding-left:18px;">
+           <li><b>Fat tails (leptokurtosis):</b> Extreme events occur far more frequently than the normal distribution predicts</li>
+           <li><b>Negative skewness:</b> Large negative returns are more common than large positive returns</li>
+           <li><b>Volatility clustering:</b> Periods of high volatility cluster together</li>
+           </ul>
+           Additionally: σ itself is <b>inflated by the very outliers you are trying to detect</b>,
+           making Z-scores less sensitive.""",
+           tag="Outlier Detection",
+           formula="Zᵢ = (Xᵢ − X̄) / σ &nbsp;&nbsp; Flag: |Z| > 3",
+           tip="Z-Score is appropriate for quick screening of clearly non-financial data (e.g. data entry errors where a price is negative). For return series, always prefer Modified Z-Score (MAD).")
+
+        qa("What is the Modified Z-Score (MAD method) and why is it preferred for financial data?",
+           f"""The <b>Modified Z-Score</b> uses the <b>Median Absolute Deviation (MAD)</b>
+           instead of the standard deviation — making it robust to outliers themselves:<br><br>
+           <b>MAD = Median |Xᵢ − X̃|</b><br>
+           <b>Mᵢ = 0.6745 × |Xᵢ − X̃| / MAD</b><br><br>
+           The constant 0.6745 makes MAD comparable to σ for normally distributed data.<br>
+           Rule: Flag |Mᵢ| > 3.5 as an outlier.<br><br>
+           <b style="color:{GREEN};">Why preferred:</b><br>
+           • The standard deviation (σ) is inflated by the extreme values you are trying to detect —
+             making Z-scores less sensitive to genuine outliers<br>
+           • MAD uses the <b>median</b>, which is completely unaffected by a few extreme values<br>
+           • Works well for return series, accounting ratios, and any fat-tailed financial variable<br>
+           • Preferred in the FinancialDataCleaner pipeline for this reason""",
+           tag="Outlier Detection",
+           formula="MAD = Median|Xᵢ − X̃| &nbsp;&nbsp; Mᵢ = 0.6745·|Xᵢ − X̃|/MAD &nbsp;&nbsp; Flag: |M| > 3.5",
+           tip="Exam key: 'Modified Z-Score' = MAD method = robust to outliers. Standard Z-Score = not robust (σ inflated by outliers).")
+
+        qa("What is the IQR method and how is it used for Winsorisation?",
+           f"""The <b>Interquartile Range (IQR) method</b> uses quartile-based fences:<br><br>
+           <b>IQR = Q3 − Q1</b><br>
+           <b>Lower Fence = Q1 − k × IQR</b><br>
+           <b>Upper Fence = Q3 + k × IQR</b><br><br>
+           <b>k = 1.5</b> → moderate outliers (standard boxplot whiskers)<br>
+           <b>k = 3.0</b> → extreme outliers (Tukey's outer fence)<br><br>
+           <b style="color:{GOLD};">Winsorisation using IQR:</b><br>
+           Values beyond the fences are <i>replaced</i> (not removed) with the fence values.
+           Standard in academic finance: winsorise at <b>1st and 99th percentiles</b>
+           for cross-sectional regressions on financial ratios.<br><br>
+           <b style="color:{LIGHT_BLUE};">Winsorisation Formula:</b><br>
+           X_wins = Qα if X &lt; Qα | X if Qα ≤ X ≤ Q₁₋α | Q₁₋α if X &gt; Q₁₋α""",
+           tag="Outlier Detection",
+           formula="IQR = Q3−Q1 &nbsp;|&nbsp; Fences = Q1±k·IQR &nbsp;|&nbsp; k=1.5 (moderate), k=3 (extreme)",
+           warning="Winsorisation vs Trimming: Winsorisation REPLACES extreme values with percentile bounds (preserving row count). Trimming REMOVES them. Always use Winsorisation in time-series to avoid losing observations.",
+           tip="Winsorisation at 1%/99% is the academic finance standard. This means clipping the top and bottom 1% to their respective boundary values.")
+
+        qa("How does Isolation Forest detect outliers?",
+           f"""<b>Isolation Forest</b> works on a fundamentally different principle from statistical methods:
+           it builds an ensemble of random decision trees and measures how <i>easy</i> it is to isolate
+           each observation.<br><br>
+           <b style="color:{GOLD};">Key insight:</b> Anomalies are rare and different — they require
+           <b>very few random splits</b> to isolate. Normal observations are densely packed and require
+           many splits.<br><br>
+           <b>Anomaly Score:</b> s(x, n) = 2^(−E[h(x)] / c(n))<br>
+           where E[h(x)] = expected path length, c(n) = normalisation constant<br><br>
+           • Score ≈ 1 → clearly anomalous (isolated in very few splits)<br>
+           • Score ≈ 0.5 → normal (requires many splits to isolate)<br>
+           • Score ≪ 0.5 → very dense normal point<br><br>
+           <b style="color:{LIGHT_BLUE};">Financial application:</b> Detecting anomalous trading patterns
+           across <b>multiple features simultaneously</b> (price + volume + spread + order imbalance) —
+           unlike univariate Z-score methods.""",
+           tag="Outlier Detection",
+           formula="<code>from sklearn.ensemble import IsolationForest<br>iso = IsolationForest(contamination=0.02, random_state=42)<br>preds = iso.fit_predict(X)  # -1 = anomaly, +1 = normal</code>",
+           tip="Isolation Forest is the only multivariate method in the course. Use it when you have multiple features (price, volume, spread) and want to detect observations that are unusual across ALL dimensions simultaneously.")
+
+        qa("What is Sensitivity Analysis and why is it the 'gold standard' for outlier decisions?",
+           f"""When the decision to include or exclude outliers is genuinely uncertain,
+           sensitivity analysis provides the most defensible approach:<br><br>
+           <b>Step 1:</b> Run the analysis <b>with</b> outliers (full sample)<br>
+           <b>Step 2:</b> Run the analysis <b>without</b> outliers (trimmed/winsorised)<br>
+           <b>Step 3:</b> Run with <b>robust methods</b> (Huber regression, Theil-Sen estimator)<br>
+           <b>Step 4:</b> Compare results:<br>
+           &nbsp;&nbsp;&nbsp;• If <b>materially different</b> → investigate further; report both; document assumptions clearly<br>
+           &nbsp;&nbsp;&nbsp;• If <b>similar</b> → outliers do not materially affect conclusions<br><br>
+           <b style="color:{GOLD};">Regulatory requirement:</b> SEBI ICDR and RBI model risk guidelines
+           require banks and AMCs to document outlier treatment methodology and demonstrate
+           stability of results to outlier assumptions.""",
+           tag="Outlier Detection",
+           tip="In any assignment or exam involving financial model building, always include a sensitivity analysis table showing results with and without extreme observations — this demonstrates professional rigour.")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 4 — TIME SERIES
+        # ══════════════════════════════════════════════════════
+        shdr("📅","Section 4 — Time Series Formatting")
+
+        qa("What are the five dimensions of financial time series formatting?",
+           f"""Financial time series are not generic tabular data — they require special handling across
+           five dimensions:<br><br>
+           <b style="color:{GOLD};">1. Index Type</b> — DatetimeIndex MUST be used.
+           String-based date indices cause silent errors in resampling and rolling calculations.<br><br>
+           <b style="color:{GOLD};">2. Timezone Handling</b> — NSE trades IST (UTC+5:30); NYSE trades ET (UTC−5).
+           Cross-market analysis requires tz-aware timestamps to avoid off-by-one-day errors.<br><br>
+           <b style="color:{GOLD};">3. Business Calendar</b> — pd.bdate_range() uses generic Mon–Fri but misses
+           Indian market holidays. NSE has ~244 trading days/year vs 261 Mon–Fri days. Use CustomBusinessDay.<br><br>
+           <b style="color:{GOLD};">4. Frequency</b> — Each data type has a specific aggregation rule when
+           resampling. Returns must be compounded (not summed). Volume must be summed.<br><br>
+           <b style="color:{GOLD};">5. Corporate Actions</b> — Price discontinuities from dividends, splits,
+           and bonuses create spurious returns. Always use backward-adjusted close prices.""",
+           tag="Time Series",
+           example="TCS declared a 1:1 bonus in 2018. On the ex-date, the unadjusted price appeared to fall 50%. This would show as a −50% outlier and then apparent outperformance — completely misleading. Adjusted prices eliminate this discontinuity.",
+           tip="'Backward adjustment' means: historical prices are revised downward to reflect the split/bonus, so the series is continuous and comparable across time.")
+
+        qa("Why must returns be compounded when resampling — not summed?",
+           f"""When aggregating daily returns to weekly or monthly frequency, the mathematically correct
+           operation is <b>compounding</b>, not summing.<br><br>
+           <b style="color:{RED};">WRONG (summing):</b> Monthly return = Σ rᵢ<br>
+           <b style="color:{GREEN};">CORRECT (compounding):</b> Monthly return = ∏(1 + rᵢ) − 1<br><br>
+           <b>Numerical example:</b> 3-day returns of +5%, −3%, +2%<br>
+           • Sum: +5% − 3% + 2% = <b>+4.00%</b> (WRONG)<br>
+           • Compound: (1.05)(0.97)(1.02) − 1 = <b>+3.937%</b> (CORRECT)<br><br>
+           The error from summing grows with the number of periods, the size of returns, and
+           the volatility of the series. Over monthly horizons, the bias is economically significant.""",
+           tag="Time Series",
+           formula="Monthly Return = ∏(1 + rᵢ) − 1<br><code>def compound_return(s): return (1 + s).prod() - 1<br>monthly_ret = daily_ret.resample('ME').apply(compound_return)</code>",
+           warning="This is one of the most commonly tested topics — and one of the most common practitioner errors. Always compound returns; never sum them across periods.")
+
+        qa("What is the correct OHLCV aggregation rule when resampling?",
+           f"""Each OHLCV field has a specific aggregation that preserves financial meaning:<br><br>
+           <table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
+           <tr style="color:{GOLD};border-bottom:1px solid {GOLD}33;">
+             <th style="padding:4px 8px;text-align:left;">Field</th>
+             <th style="padding:4px 8px;text-align:left;">Aggregation</th>
+             <th style="padding:4px 8px;text-align:left;">Rationale</th>
+           </tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Open</td><td>.first()</td><td>Opening price of the period</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">High</td><td>.max()</td><td>Highest price reached in period</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Low</td><td>.min()</td><td>Lowest price reached in period</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">Close</td><td>.last()</td><td>Closing price of period</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Volume</td><td>.sum()</td><td>Total shares traded in period</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">Returns</td><td>∏(1+rᵢ)−1</td><td>Compound — never sum!</td></tr>
+           </table>""",
+           tag="Time Series",
+           formula="<code>ohlcv_agg = {'Open':'first','High':'max','Low':'min','Close':'last','Volume':'sum'}<br>weekly = df.resample('W-FRI').agg(ohlcv_agg)</code>",
+           tip="Exam trick: If a question asks which OHLCV aggregation is wrong — it is always 'Returns = sum of daily returns'.")
+
+        qa("What is cubic spline interpolation and how is it used for yield curves?",
+           f"""When some government bond maturities are not actively traded (e.g., 4-year, 6-year),
+           their yields must be <b>interpolated</b> from observable benchmark yields.<br><br>
+           <b>Cubic Spline Interpolation</b> fits smooth polynomial curves of degree 3 between known
+           data points. Unlike linear interpolation, it ensures smooth first and second derivatives at
+           each knot — producing a smooth, economically realistic yield curve.<br><br>
+           <b style="color:{GOLD};">Indian market context:</b> FIMMDA and CCIL use cubic spline /
+           Nelson-Siegel-Svensson interpolation to construct the complete G-Sec yield curve from
+           the ~10 liquid benchmark maturities (0.25Y to 30Y).<br><br>
+           <b>Applications:</b> Bond valuation (present value calculations), duration and convexity analysis,
+           interest rate derivative pricing (FRAs, IRS), regulatory capital computations.""",
+           tag="Time Series",
+           formula="<code>from scipy.interpolate import CubicSpline<br>cs = CubicSpline(maturities_observed, yields_observed)<br>yields_missing = cs(missing_tenors)</code>",
+           tip="Spline is preferred over linear interpolation for yield curves because interest rates change smoothly — sudden 'kinks' in the yield curve at observable maturities would be economically unrealistic.")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 5 — INVALID VALUES
+        # ══════════════════════════════════════════════════════
+        shdr("⚠️","Section 5 — Invalid Values")
+
+        qa("What is the difference between a missing value and an invalid value?",
+           f"""This distinction is fundamental and often confused:<br><br>
+           <b style="color:{LIGHT_BLUE};">Missing Value (NaN / NULL)</b><br>
+           The observation <b>is absent</b> from the dataset entirely. The cell contains no value.
+           Treatment: imputation methods (LOCF, KNN, MICE, etc.).<br><br>
+           <b style="color:{RED};">Invalid Value</b><br>
+           The observation <b>is present</b> but is logically, mathematically, or domain-impossibly wrong.
+           The cell contains a value — but that value violates a rule.<br><br>
+           <b>Categories of invalidity:</b><br>
+           • <b>Domain constraints:</b> Price ≤ 0; Probability ∉ [0,1]<br>
+           • <b>Logical constraints:</b> OHLC High &lt; Low; Ask &lt; Bid<br>
+           • <b>Referential integrity:</b> Trade date after settlement date; Bond maturity before issue date<br>
+           • <b>Business rules:</b> Volume = 0 during claimed active trading session<br>
+           • <b>Relational constraints:</b> Total Assets ≠ Total Liabilities + Equity""",
+           tag="Invalid Values",
+           example="NSE price = −₹50 → Invalid (domain constraint: price must be positive). NSE price field is blank → Missing (NaN). Both need treatment but different treatment.",
+           tip="Invalid values must be DETECTED before imputation. If you impute missing values first and then check for invalids, you may impute an invalid value into many rows.")
+
+        qa("What is 'stale price detection' and why does it matter?",
+           f"""A <b>stale price</b> occurs when a financial instrument's price shows zero change
+           for an abnormally long consecutive period — indicating the data feed has disconnected
+           or the price is not being updated.<br><br>
+           <b style="color:{GOLD};">Detection rule:</b> If Close price is unchanged for 5+ consecutive
+           trading days in a normally liquid security, flag as stale.<br><br>
+           <b>Why it matters:</b><br>
+           • Portfolio valuation becomes incorrect (marking to stale prices)<br>
+           • Returns series shows artificial zeros → volatility understated<br>
+           • Risk models think the security has zero volatility → VaR completely wrong<br>
+           • Algorithmic momentum signals generate false signals<br><br>
+           <b>Legitimate exceptions:</b> Auction stocks, circuit-breaker halted stocks, very illiquid
+           securities — always verify against market calendar and circuit breaker records.""",
+           tag="Invalid Values",
+           formula="<code>price_unchanged = (df['Close'] != df['Close'].shift(1))<br>stale_flag = (price_unchanged.rolling(5).sum() == 0)</code>",
+           warning="Do not automatically remove or impute all stale prices — first verify whether the stock was suspended, in an auction, or hit a circuit breaker. Removal of legitimate trading halts distorts historical data.")
+
+        qa("What are the OHLC logic constraints and how do you validate them?",
+           f"""The OHLC structure has rigid mathematical relationships that must always hold:<br><br>
+           <b style="color:{GOLD};">Required invariants:</b><br>
+           • High ≥ Low &nbsp;&nbsp; (always true by definition)<br>
+           • High ≥ Open &nbsp;&nbsp; (the high must be at least the open)<br>
+           • High ≥ Close &nbsp;&nbsp; (the high must be at least the close)<br>
+           • Low ≤ Open &nbsp;&nbsp; (the low must be no more than the open)<br>
+           • Low ≤ Close &nbsp;&nbsp; (the low must be no more than the close)<br><br>
+           <b>Any violation is ALWAYS a data error</b> — never a legitimate market event.
+           (Short squeezes, limit moves, and circuit breakers do not violate OHLC logic.)<br><br>
+           <b>Treatment:</b> Convert to NaN → impute using adjacent valid observations, or flag for
+           source data verification (cross-check NSE/BSE/Bloomberg).""",
+           tag="Invalid Values",
+           formula="<code>ohlc_invalid = df[(df.High < df.Low) | (df.High < df.Close) |<br>               (df.High < df.Open) | (df.Low > df.Close) |<br>               (df.Low > df.Open)]</code>",
+           tip="High < Low is the most frequently tested OHLC validity rule. It is always an error — never valid market data under any circumstances.")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 6 — PIPELINE & CASE STUDIES
+        # ══════════════════════════════════════════════════════
+        shdr("⚙️","Section 6 — The Cleaning Pipeline & Case Studies")
+
+        qa("What are the four stages of the FinancialDataCleaner pipeline?",
+           f"""<b style="color:{GOLD};">Stage 1 — validate_schema()</b><br>
+           Detect mixed-type columns, coerce numeric strings, ensure DatetimeIndex,
+           sort chronologically, remove duplicate timestamps.<br><br>
+           <b style="color:{GOLD};">Stage 2 — treat_missing()</b><br>
+           Drop columns exceeding missing_threshold. Apply tiered strategy by % missing:
+           &lt;2% → ffill, 2–15% → KNN, &gt;15% → median + binary flag column.<br><br>
+           <b style="color:{GOLD};">Stage 3 — treat_outliers()</b><br>
+           Modified Z-Score (MAD) per column. Action is configurable:
+           'winsorise', 'flag', or 'remove' + ffill. Skips flag/indicator columns.<br><br>
+           <b style="color:{GOLD};">Stage 4 — cleaning_report()</b><br>
+           Produces a full before/after audit trail: shape change, missing count change,
+           step-by-step log of every action taken. Required for model governance documentation.""",
+           tag="Pipeline",
+           formula="<code>cleaner = FinancialDataCleaner(config={'outlier_action':'winsorise', 'zscore_threshold':3.5})<br>df_clean = cleaner.clean(df_raw)<br>log_df = cleaner.cleaning_report(df_raw, df_clean)</code>",
+           tip="In any assessment, always mention that the pipeline produces an audit trail (cleaning_report). Model governance and regulatory requirements demand documented, reproducible data cleaning decisions.")
+
+        qa("Demonetisation (Nov 2016): Should NIFTY's −4% be removed as an outlier?",
+           f"""<b style="color:{RED};">No — it must be retained in almost all financial models.</b><br><br>
+           <b>Statistical assessment:</b> Z-score ≈ −5.2σ for a single trading day return in 2016.
+           Mechanically, this would be flagged for removal by any |Z| > 3 rule.<br><br>
+           <b>Domain assessment:</b> This is a <b>genuine extreme event</b> driven by a known policy shock,
+           not a data error. The correct treatment depends on the model:<br><br>
+           <table style="width:100%;font-size:0.83rem;">
+           <tr style="color:{GOLD};"><th style="padding:4px 8px;text-align:left;">Model</th><th style="padding:4px 8px;text-align:left;">Treatment</th></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Historical VaR / ES</td><td style="padding:4px 8px;">✅ RETAIN — this IS the tail event the model must price</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">CAPM / Factor Regression</td><td style="padding:4px 8px;">🟡 FLAG — add D_nov2016=1 dummy variable</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">GARCH Volatility</td><td style="padding:4px 8px;">✅ RETAIN — volatility clustering is a key stylised fact</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">Stress Testing</td><td style="padding:4px 8px;">✅ RETAIN — prime historical stress scenario</td></tr>
+           </table>""",
+           tag="Case Studies",
+           warning="Removing Demonetisation from a VaR dataset would understate tail risk — making the bank's capital buffer look adequate when it may not be. This is precisely the type of error that leads to regulatory failures.",
+           tip="The lesson: domain knowledge must ALWAYS override mechanical statistical rules. A model that removes all |Z|>3 events is systematically blind to the tail risks it is designed to measure.")
+
+        qa("IL&FS Default (2018): What was the data quality lesson and how does MNAR apply?",
+           f"""<b style="color:{GOLD};">What happened:</b> Infrastructure Leasing & Financial Services (IL&FS)
+           defaulted on commercial paper obligations in September 2018, triggering a liquidity crisis
+           across Indian NBFCs and credit markets.<br><br>
+           <b style="color:{RED};">The MNAR pattern:</b> Months before the default, IL&FS subsidiaries
+           began selectively reporting financial data. Cash flow metrics were delayed or missing —
+           and the missingness was MNAR: the subsidiaries <b>in most financial stress had the most
+           missing/delayed data</b>.<br><br>
+           <b style="color:{LIGHT_BLUE};">Why MCAR/MAR assumptions failed:</b> Analysts who treated missing
+           values as MCAR or MAR (and applied simple imputation) missed the distress signal entirely.
+           Those who investigated <i>why</i> data was missing correctly identified emerging distress.<br><br>
+           <b>The lesson — three key practices:</b><br>
+           1. Always investigate <i>why</i> data is missing before deciding <i>how</i> to handle it<br>
+           2. In credit analysis, systematic missing data in stressed entities is a RED FLAG, not a neutral gap<br>
+           3. Add missingness as a feature: <code>df['cfo_missing'] = df['CFO'].isnull().astype(int)</code>
+              — binary flags can be powerful early-warning predictors in ML credit models""",
+           tag="Case Studies",
+           tip="This case study is ideal for demonstrating the MNAR concept. IL&FS shows that 'missing data' was itself the signal — the absence of disclosure was more informative than the disclosure would have been.")
+
+        qa("NSE Feed Outage: How does MCAR block missing differ from MNAR, and how should it be treated?",
+           f"""<b style="color:{GREEN};">MCAR context:</b> A quantitative fund's data feed experiences a
+           3-hour outage (10:30–13:30 IST) on a regular trading day. The missing data is MCAR —
+           the outage is a random technical failure completely unrelated to market conditions
+           (the market did not stop trading; only the firm's data feed disconnected).<br><br>
+           <b>Treatment depends on the downstream use:</b><br><br>
+           <table style="width:100%;font-size:0.83rem;">
+           <tr style="color:{GOLD};"><th style="padding:4px 8px;text-align:left;">Use Case</th><th style="padding:4px 8px;text-align:left;">Treatment</th><th style="padding:4px 8px;text-align:left;">Rationale</th></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">End-of-Day P&L</td><td>Forward-fill</td><td>Closing prices available; intraday irrelevant</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">Intraday VaR</td><td>EXCLUDE window</td><td>Cannot reliably impute for risk calcs</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Momentum Signal</td><td>Do not trade</td><td>Stale prices → false signals → losses</td></tr>
+           <tr style="color:{TXT};background:#0a1428;"><td style="padding:4px 8px;">VWAP Calculation</td><td>Partial VWAP</td><td>Note incomplete window in reports</td></tr>
+           <tr style="color:{TXT};"><td style="padding:4px 8px;">Historical Backtest</td><td>Fill from exchange</td><td>NSE/BSE historical tick data</td></tr>
+           </table><br>
+           <b>Best practice:</b> Quant funds implement <b>data quality gates</b> — automated checks
+           that halt or modify signal generation when data completeness falls below 90% of expected
+           ticks in the last 5 minutes.""",
+           tag="Case Studies",
+           tip="Contrast with IL&FS (MNAR): in MCAR outage, imputation is acceptable for non-risk uses (P&L valuation). In MNAR (IL&FS), imputation is dangerous and the pattern of missingness IS the signal.")
+
+        # ══════════════════════════════════════════════════════
+        # SECTION 7 — PYTHON QUICK REFERENCE
+        # ══════════════════════════════════════════════════════
+        shdr("💻","Section 7 — Python Quick Reference")
+
+        qa("What are the essential Python one-liners every financial data analyst must know?",
+           f"""Key pandas / sklearn commands for financial data cleaning:<br>""",
+           tag="Python",
+           formula="""<code style="font-size:0.78rem;line-height:2;">
+# Missing data diagnosis
+df.isnull().sum()                              # Count per column
+df.isnull().mean() * 100                       # % missing per column
+df.isnull().sum().sum()                        # Total missing cells
+
+# Imputation
+df[col].ffill()                                # Forward fill (LOCF)
+df[col].interpolate('linear')                  # Linear interpolation
+df[col].fillna(df[col].median())               # Median imputation
+KNNImputer(n_neighbors=7).fit_transform(X)     # KNN imputation
+
+# DatetimeIndex
+df.index = pd.to_datetime(df.index)            # Convert to DatetimeIndex
+df = df.sort_index()                           # Sort chronologically
+df = df[~df.index.duplicated(keep='last')]     # Remove duplicate timestamps
+df.resample('ME').agg({'Close':'last', ...})   # Resample to monthly
+
+# Outlier detection
+z = np.abs(stats.zscore(series))               # Standard Z-Score
+mad = np.median(np.abs(s - s.median()))        # MAD
+mod_z = 0.6745 * np.abs(s - s.median()) / mad # Modified Z-Score
+IsolationForest(contamination=0.02).fit_predict(X) # Isolation Forest
+
+# Winsorisation
+series.clip(lower=series.quantile(0.01),
+            upper=series.quantile(0.99))       # Winsorise at 1%/99%
+
+# OHLCV validation
+invalid = df[(df.High < df.Low) |
+             (df.Close <= 0) |
+             (df.Volume == 0)]                 # Flag invalid rows
+
+# Compound returns
+def compound_ret(s): return (1 + s).prod() - 1
+monthly_ret = daily_ret.resample('ME').apply(compound_ret)
+</code>""",
+           tip="Memorise the Modified Z-Score formula: mod_z = 0.6745 * |x - median| / MAD. This appears in almost every outlier detection question.")
+
+        st.markdown(f"""<div class="mp-card-green" style="margin-top:14px;">
+        <b style="color:{GREEN};">✅ Study Guide Complete!</b><br><br>
+        You have covered all 7 sections — Fundamentals, Missing Data (MCAR/MAR/MNAR),
+        Outlier Detection (4 methods), Time Series Formatting, Invalid Values, the Cleaning Pipeline,
+        and three Indian market case studies.<br><br>
+        <b>Now test yourself</b> → Switch to the <b>✏️ Take the Quiz</b> tab.
+        </div>""", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════
+    # TAB 2 — QUIZ
+    # ══════════════════════════════════════════════════════════
+    with tab_quiz:
+        shdr("✏️","Knowledge Assessment — 8 Questions")
 
         if "quiz_score" not in st.session_state:
-            st.session_state.quiz_score = 0
-            st.session_state.quiz_answers = {}
-            st.session_state.quiz_submitted = False
+            st.session_state.quiz_score=0; st.session_state.quiz_answers={}; st.session_state.quiz_submitted=False
 
-        questions = [
-            {"q":"1. According to Benford\'s Law, what is the expected probability of a number beginning with digit 1?",
-             "options":["11.1% (uniform)","30.1%","17.6%","25.0%"],"answer":1,
-             "explain":"P(1) = log₁₀(2) ≈ 30.1%. Digit 1 appears as the leading digit in roughly 1 in 3 naturally occurring numbers."},
-            {"q":"2. In a dataset of 1,000 expense claims, MAD = 0.022. Correct interpretation?",
-             "options":["Close conformity","Acceptable conformity","Non-conforming — investigate immediately","Too few observations"],
-             "answer":2,"explain":"MAD > 0.015 indicates non-conformity. Flag for investigation (Nigrini, 2012)."},
-            {"q":"3. A bank customer makes 30 deposits of ₹9,50,000 over 90 days (PMLA threshold ₹10L). Which fraud?",
-             "options":["Tax evasion through round numbers","Structuring (smurfing) under PMLA threshold","Financial statement manipulation","Expense fraud"],
-             "answer":1,"explain":"Classic structuring (smurfing) — breaking a large sum into deposits below the ₹10L CTR threshold."},
-            {"q":"4. Which dataset does NOT follow Benford\'s Law?",
-             "options":["NSE daily trading volumes","GST invoice amounts","Employee ID numbers (sequential)","Financial statement line items"],
-             "answer":2,"explain":"Sequential employee IDs are assigned uniformly — not generated by natural multiplicative processes."},
-            {"q":"5. Chi-squared rejects at p=0.001 but MAD=0.008 (acceptable). What to conclude?",
-             "options":["Fraud confirmed","Chi-squared wins — investigate","MAD more reliable; deviation is statistically but not practically significant","Discard chi-squared"],
-             "answer":2,"explain":"With very large samples, chi-squared oversensitively rejects Benford. MAD is the preferred metric."},
-            {"q":"6. Digit 4 has Z-score 5.2 on 200 invoices, approval threshold ₹5,000. Best fraud hypothesis?",
-             "options":["Psychological anchoring (₹4,999)","Threshold gaming — amounts just below ₹5,000","Rounding errors","Dataset too small"],
-             "answer":1,"explain":"Digit-4 over-representation at ₹5k threshold is the classic threshold-gaming signature."},
-            {"q":"7. A fraudster fabricates invoices conforming to Benford\'s first-digit distribution. Implication?",
-             "options":["Benford is useless","Supplement with second digit, summation, last digit, ML tests","Fraudster cannot be caught","Use larger sample"],
-             "answer":1,"explain":"A knowledgeable fraudster can defeat first-digit conformity but rarely all tests simultaneously."},
-            {"q":"8. Required action under Indian law when bank detects PMLA structuring?",
-             "options":["Freeze account immediately","Inform customer, 30 days to explain","File STR with FIU-IND","Wait for ₹10L to be crossed"],
-             "answer":2,"explain":"PMLA and RBI Master Directions require STR with FIU-IND when structuring is suspected — regardless of individual transaction size."},
+        Qs=[
+            {"q":"1. Which missingness mechanism is most dangerous and cannot be corrected by standard statistical methods?",
+             "opts":["MCAR — Missing Completely at Random","MAR — Missing at Random","MNAR — Missing Not at Random","Block Missingness"],
+             "ans":2,"exp":"MNAR missingness depends on the unobserved missing value itself — no standard imputation corrects for it. IL&FS is a classic MNAR example where missing data signalled distress."},
+            {"q":"2. A portfolio VaR model uses forward-filled prices to compute daily returns. What is the primary consequence?",
+             "opts":["VaR is overstated due to inflated variance","VaR is understated because artificial zero-return days reduce measured volatility","Forward fill has no impact on VaR","The correlation matrix becomes non-positive definite"],
+             "ans":1,"exp":"Forward-filled prices create artificial zero returns, reducing measured standard deviation — VaR is understated. This creates dangerously false security in risk management."},
+            {"q":"3. For 8% missing values with MAR mechanism, what is the recommended imputation strategy?",
+             "opts":["Listwise deletion","Mean imputation","KNN or regression-based imputation","Only MICE works"],
+             "ans":2,"exp":"For 5–15% missing under MAR, KNN or regression imputation is recommended. Listwise deletion produces biased estimates under MAR; mean imputation reduces variance."},
+            {"q":"4. Modified Z-Score (MAD) is preferred over standard Z-Score for financial returns because:",
+             "opts":["MAD requires larger samples","Standard Z-Score needs sorted arrays","MAD is unaffected by outliers themselves — σ is inflated by the very values being detected","MAD assumes normality"],
+             "ans":2,"exp":"σ is inflated by extreme values — making detection less sensitive. MAD uses the median, which is robust to the outliers you are trying to identify."},
+            {"q":"5. NIFTY 50 fell 4.0% on 8 November 2016 (Demonetisation). For historical simulation VaR, you should:",
+             "opts":["Remove it — statistical outlier (|Z|>3)","Winsorise it to 1st percentile","RETAIN it — genuine tail event the model must capture","Replace with surrounding day average"],
+             "ans":2,"exp":"Historical simulation VaR MUST include this observation — it IS the tail risk. Removing it would understate tail risk in a way that creates false security."},
+            {"q":"6. When resampling daily OHLCV to monthly frequency, which aggregation is INCORRECT?",
+             "opts":["Open = first observation","High = maximum of daily highs","Volume = sum of daily volumes","Returns = sum of daily returns"],
+             "ans":3,"exp":"Returns must be COMPOUNDED: ∏(1+rᵢ)−1. Summing daily returns overestimates multi-period performance — particularly over monthly horizons."},
+            {"q":"7. An OHLCV dataset shows High = ₹2,800 and Low = ₹3,100 on the same trading day. This is:",
+             "opts":["Valid — intraday prices can cross","Error outlier — High must always ≥ Low; correct it","Genuine extreme event — short squeezes cause this","Structural break needing regime analysis"],
+             "ans":1,"exp":"By definition High ≥ Low always. When High < Low it is ALWAYS a data entry or feed error — never a real market observation. Must be corrected or flagged."},
+            {"q":"8. FinancialDataCleaner uses Modified Z-Score (MAD) rather than standard Z-Score because:",
+             "opts":["MAD is faster to compute","Standard Z-Score needs sorted arrays","MAD is robust to outliers in the data itself — σ is inflated by the same outliers being detected","MAD works only for normal distributions"],
+             "ans":2,"exp":"σ is inflated by extreme values — making Z-score less sensitive. MAD (Median Absolute Deviation) is based on the median: robust to the outliers you are trying to find."},
         ]
 
         if not st.session_state.quiz_submitted:
-            st.markdown(f'''<div class="mp-card">
-            <b style="color:#FFD700;">📋 Instructions</b> — Answer all 8 questions then click Submit.
-            Each question carries 1 mark. Study the <b>📖 Study Guide</b> tab first!
-            </div>''', unsafe_allow_html=True)
-            for i, q_data in enumerate(questions):
-                sel = st.radio(q_data["q"], q_data["options"], key=f"q{i}", index=None)
-                if sel:
-                    st.session_state.quiz_answers[i] = q_data["options"].index(sel)
-            if st.button("✅ Submit Assessment", type="primary"):
-                if len(st.session_state.quiz_answers) < len(questions):
-                    st.warning(f"Please answer all questions. ({len(st.session_state.quiz_answers)}/{len(questions)} answered)")
+            st.markdown(f"""<div class="mp-card">
+            <b style="color:{GOLD};">📋 Instructions</b> — Answer all 8 questions, then click Submit.
+            Each question carries 1 mark. Detailed explanations provided after submission.
+            Haven't studied yet? Switch to the <b>📖 Study Guide</b> tab first!
+            </div>""",unsafe_allow_html=True)
+            for i,q in enumerate(Qs):
+                sel=st.radio(q["q"],q["opts"],key=f"q{i}",index=None)
+                if sel: st.session_state.quiz_answers[i]=q["opts"].index(sel)
+            if st.button("✅ Submit Assessment",type="primary"):
+                if len(st.session_state.quiz_answers)<len(Qs):
+                    st.warning(f"Please answer all {len(Qs)} questions. ({len(st.session_state.quiz_answers)} answered)")
                 else:
-                    score = sum(1 for i, q in enumerate(questions)
-                        if st.session_state.quiz_answers.get(i) == q["answer"])
-                    st.session_state.quiz_score = score
-                    st.session_state.quiz_submitted = True
-                    st.rerun()
+                    st.session_state.quiz_score=sum(1 for i,q in enumerate(Qs)
+                        if st.session_state.quiz_answers.get(i)==q["ans"])
+                    st.session_state.quiz_submitted=True; st.rerun()
         else:
-            score = st.session_state.quiz_score
-            pct = score / len(questions) * 100
-            if pct >= 75:   grade, css = f"Excellent! {score}/{len(questions)} ({pct:.0f}%)", "verdict-ok"
-            elif pct >= 50: grade, css = f"Good effort! {score}/{len(questions)} ({pct:.0f}%)", "verdict-warn"
-            else:           grade, css = f"Needs Review — revisit the Study Guide", "verdict-bad"
-            st.markdown(f'''<div class="{css}">🎓 Your Score: {grade}</div>''', unsafe_allow_html=True)
-            st.progress(score / len(questions))
-            st.markdown("### 📖 Detailed Explanations")
-            for i, q_data in enumerate(questions):
-                ua = st.session_state.quiz_answers.get(i, -1)
-                correct = q_data["answer"]
-                ok = ua == correct
-                with st.expander(f"{{'✅' if ok else '❌'}} Q{{i+1}}: {{q_data['q'][:70]}}...", expanded=not ok):
-                    st.markdown(f"**Your answer:** {{q_data['options'][ua] if ua >= 0 else 'Not answered'}}")
-                    st.markdown(f"**Correct answer:** {{q_data['options'][correct]}}")
-                    if ok: st.success(f"✅ Correct! {{q_data['explain']}}")
-                    else:  st.error(f"❌ Explanation: {{q_data['explain']}}")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Retake Quiz"):
-                    st.session_state.quiz_score = 0
-                    st.session_state.quiz_answers = {}
-                    st.session_state.quiz_submitted = False
-                    st.rerun()
-            with col2:
-                st.markdown(f'''<div class="mp-card">
-                <b style="color:#FFD700;">📚 Continue Learning</b><br>
-                Visit <a href="https://themountainpathacademy.com">themountainpathacademy.com</a>
-                for full notes, Python notebooks, and extended case studies.
-                </div>''', unsafe_allow_html=True)
+            sc=st.session_state.quiz_score; pct=sc/len(Qs)*100
+            if pct>=75: g,css="Excellent! 🎓","verdict-ok"
+            elif pct>=50: g,css="Good effort! 👍","verdict-warn"
+            else: g,css="Needs Review 📖 — revisit the Study Guide","verdict-bad"
+            st.markdown(f'<div class="{css}">Your Score: {sc}/{len(Qs)} ({pct:.0f}%) — {g}</div>',unsafe_allow_html=True)
+            st.progress(sc/len(Qs))
 
-    st.markdown("---")
-    st.markdown(f"""<div style="text-align:center; color:{MUTED}; font-size:12px; padding:10px;">
-      <b style="color:{GOLD};">The Mountain Path — World of Finance</b><br>
-      Prof. V. Ravichandran |
-      <a href="https://themountainpathacademy.com">themountainpathacademy.com</a> |
-      <a href="https://www.linkedin.com/in/trichyravis">LinkedIn</a> |
-      <a href="https://github.com/trichyravis">GitHub</a><br>
-      <span style="font-size:10px;">Reference: Nigrini (2012) Benford's Law | ACFE 2024 Report to the Nations</span>
-    </div>""", unsafe_allow_html=True)
+            st.markdown(f"### 📖 Detailed Explanations")
+            for i,q in enumerate(Qs):
+                ua=st.session_state.quiz_answers.get(i,-1); ok=ua==q["ans"]
+                with st.expander(f"{'✅' if ok else '❌'} Q{i+1}: {q['q'][:70]}...",expanded=not ok):
+                    st.markdown(f"**Your answer:** {q['opts'][ua] if ua>=0 else 'Not answered'}")
+                    st.markdown(f"**Correct answer:** {q['opts'][q['ans']]}")
+                    if ok: st.success(f"✅ Correct! {q['exp']}")
+                    else:  st.error(f"❌ {q['exp']}")
+
+            c1,c2=st.columns(2)
+            with c1:
+                if st.button("🔄 Retake Quiz"):
+                    st.session_state.quiz_score=0; st.session_state.quiz_answers={}
+                    st.session_state.quiz_submitted=False; st.rerun()
+            with c2:
+                st.markdown(f"""<div class="mp-card">
+                <b style="color:{GOLD};">📚 Continue Learning</b><br>
+                Visit <a href="https://themountainpathacademy.com">themountainpathacademy.com</a>
+                for full session notes, Python notebooks, and extended case studies.
+                </div>""",unsafe_allow_html=True)
+    footer()
