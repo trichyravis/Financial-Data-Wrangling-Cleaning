@@ -2316,9 +2316,11 @@ elif page == "📚 Case Studies":
                 daily_ret = np.concatenate([[0], np.diff(navs)/navs[:-1]])
                 roll_std  = pd.Series(daily_ret).rolling(5).std().fillna(0).values
                 stale_flag = (roll_std < 0.0002).astype(int)
-                liq_score = np.where(np.arange(n_ft2) >= stale_from,
-                                     np.linspace(100, 0, n_ft2)[np.arange(n_ft2) - max(0, stale_from - n_ft2)],
-                                     rng_ft2.uniform(70, 100, n_ft2))
+                liq_base = rng_ft2.uniform(70, 100, n_ft2)
+                liq_score = liq_base.copy()
+                if stale_from < n_ft2:
+                    n_stale = n_ft2 - stale_from
+                    liq_score[stale_from:] = np.linspace(60, 5, n_stale)
                 liq_score = np.clip(liq_score, 0, 100)
 
                 for i in range(n_ft2):
